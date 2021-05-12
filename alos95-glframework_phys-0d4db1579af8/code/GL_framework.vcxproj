@@ -144,10 +144,12 @@ xcopy $(ProjectDir)libs\SDL2.dll $(OutDir) /y /d</Command>
     <ClCompile Include="src\physics.cpp" />
     <ClCompile Include="src\render.cpp" />
     <ClCompile Include="src\render_prims.cpp" />
+    <ClCompile Include="src\RigidBody.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\Mesh.h" />
     <ClInclude Include="src\ParticleSystem.h" />
+    <ClInclude Include="src\RigidBody.h" />
     <ClInclude Include="src\Utils.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

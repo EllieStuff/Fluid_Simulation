@@ -9,7 +9,10 @@ namespace Sphere {
 	extern void updateSphere(glm::vec3 pos, float radius = 1.f);
 }
 
-RigidBody::RigidBody(float mass) : mass(mass) {};
+RigidBody::RigidBody(glm::vec3 initialPosition, glm::quat initialRotation, float mass, glm::vec3 linearSpeed, glm::vec3 angularSpeed) {
+	this->mass = mass;
+	initializeState(initialPosition, initialRotation, linearSpeed, angularSpeed);
+}
 
 void RigidBody::initializeState(glm::vec3 initialPosition, glm::quat initialRotation, glm::vec3 linearSpeed, glm::vec3 angularSpeed) {
 	// Initialize the state outside the constructor to use the virtual method getInitialInertiaTensor
@@ -58,8 +61,12 @@ glm::mat3 RigidBody::getInertiaTensor() {
 }
 
 
-Box::Box(float width, float height, float depth, float mass)
-	: RigidBody(mass), width(width), height(height), depth(depth) {};
+Box::Box(glm::vec3 _initPos, glm::quat _initRot, float _mass,
+		glm::vec3 _linearVelocity, glm::vec3 _angularVelocity,
+		float _width, float _height, float _depth)
+	: RigidBody(_initPos, _initRot, _mass, _linearVelocity, _angularVelocity), 
+		width(_width), height(_height), depth(_depth) {};
+
 
 void Box::draw() {
 	RigidBody::State state = getState();

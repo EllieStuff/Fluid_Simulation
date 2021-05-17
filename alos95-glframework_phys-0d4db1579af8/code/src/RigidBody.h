@@ -1,6 +1,7 @@
 #pragma once
-#include <glm/glm.hpp>
+//#include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
+//#include <glm\gtc\matrix_transform.hpp>
 
 class RigidBody {
 public:
@@ -11,7 +12,8 @@ public:
 		glm::vec3 angularMomentum;  // L(t)
 	};
 
-	RigidBody(float mass);
+	RigidBody(float mass) : mass(mass) {};
+	RigidBody(glm::vec3 initialPosition, glm::quat initialRotation, float mass, glm::vec3 linearSpeed, glm::vec3 angularSpeed);
 	void initializeState(glm::vec3 initialPosition, glm::quat initialRotation, glm::vec3 linearSpeed, glm::vec3 angularSpeed);
 
 	State getState();
@@ -35,7 +37,12 @@ private:
 
 class Box : public RigidBody {
 public:
-	Box(float width, float height, float depth, float mass);
+	//Box(float width, float height, float depth, float mass);
+	Box(
+		glm::vec3 _initPos, glm::quat _initRot, float _mass,
+		glm::vec3 _linearVelocity, glm::vec3 _angularVelocity,
+		float _width, float _height, float _depth
+	);
 	virtual void draw() override;
 protected:
 	virtual glm::mat3 getInitialInertiaTensor() override;

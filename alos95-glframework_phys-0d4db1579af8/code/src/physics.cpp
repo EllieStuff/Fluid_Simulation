@@ -4,6 +4,7 @@
 
 #include "Mesh.h"
 #include "Utils.h"
+#include "RigidBody.h"
 
 //Exemple
 extern void Exemple_GUI();
@@ -19,6 +20,7 @@ extern bool renderParticles;
 extern bool renderSphere;
 extern bool renderCapsule;
 extern bool renderCloth;
+extern bool renderBox;
 float maxAge = 30.f;
 const int INIT_PARTICLES = 1000;
 float currTime = 1.f / ps.emissionRate;
@@ -36,6 +38,8 @@ float rowRestDist = 0.3f, colRestDist = 0.3f;
 
 glm::vec3 spherePos;
 float sphereRadius;
+
+Box box;
 
 
 bool show_test_window = false;
@@ -85,13 +89,13 @@ void PhysicsInit() {
 	ClothMesh::numRows = 18;*/
 
 	mesh = Mesh(ClothMesh::numCols, ClothMesh::numRows);
-	renderCloth = true;
+	renderCloth = false;
 
 	//Exemple_PhysicsInit();
 
 	renderParticles = false;
 	//ps = ParticleSystem(INIT_PARTICLES);
-	renderSphere = true;
+	renderSphere = false;
 	if (renderSphere) {
 		spherePos = glm::vec3((rand() % 10) - 5, rand() % 10, (rand() % 10) - 5);
 		sphereRadius = (rand() % 3) + 1;
@@ -99,6 +103,12 @@ void PhysicsInit() {
 	}
 	//renderCapsule = true;
 	//Capsule::setupCapsule(glm::vec3(3, 3, 0), glm::vec3(2, 8, 0), 1.5f);
+
+
+	renderBox = true;
+	if (renderBox) {
+		Box::setupCube();
+	}
 }
 
 void spawn(glm::vec3 initPos = glm::vec3(0, 0, 0), glm::vec3 initVelocity = glm::vec3(0, 0, 0)) {
@@ -164,6 +174,9 @@ void PhysicsUpdate(float dt) {
 		if (renderSphere) {
 			Sphere::updateSphere(spherePos, sphereRadius);
 			Sphere::drawSphere();
+		}
+		if (renderBox) {
+			
 		}
 		/*Capsule::updateCapsule(glm::vec3(3, 3, 0), glm::vec3(3, 7, 0), 1.5f);
 		Capsule::drawCapsule();*/

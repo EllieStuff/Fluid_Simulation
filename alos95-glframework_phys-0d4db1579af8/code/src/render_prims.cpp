@@ -46,6 +46,12 @@ namespace Cube {
 	extern void drawCube();
 }
 
+namespace Box {
+	extern void setupCube();
+	extern void cleanupCube();
+	extern void drawCube();
+}
+
 void setupPrims() {
 	Sphere::setupSphere();
 	Capsule::setupCapsule();

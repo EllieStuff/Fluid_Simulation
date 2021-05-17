@@ -49,6 +49,13 @@ namespace Capsule {
 	extern void drawCapsule();
 }
 
+////////////////////////////////////////////////// BOX
+namespace Box {
+	extern void setupCube();
+	extern void cleanupCube();
+	extern void drawCube();
+}
+
 
 class ParticleSystem {
 private:

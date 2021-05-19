@@ -6,7 +6,7 @@
 class RigidBody {
 public:
 	struct State {
-		glm::vec3 com;  // Position of the Cenrer Of Mass
+		glm::vec3 centerOfMass;  // Position of the Cenrer Of Mass
 		glm::quat rotation;  // Quaternion that represents the current rotation q(t)
 		glm::vec3 linearMomentum;  // P(t)
 		glm::vec3 angularMomentum;  // L(t)
@@ -22,17 +22,19 @@ public:
 	void commitState();
 
 	float getMass();
-	glm::mat3 getInertiaTensor();
+	virtual glm::mat3 getInertiaTensor() = 0;
 
+	virtual void update(float dt, glm::vec3 forces, glm::vec3 forcePoint) = 0;
 	virtual void draw() = 0;
 protected:
-	glm::mat3 getRotationMatrix();
-	virtual glm::mat3 getInitialInertiaTensor() = 0;
-private:
 	float mass;
 	glm::mat3 initialInertiaTensor;
 	State stableState;
 	State state;
+
+	glm::mat3 getRotationMatrix();
+	virtual glm::mat3 getInitialInertiaTensor() = 0;
+private:
 };
 
 class Box : public RigidBody {
@@ -43,17 +45,29 @@ public:
 		glm::vec3 _linearVelocity, glm::vec3 _angularVelocity,
 		float _width, float _height, float _depth
 	);
+
+	virtual glm::mat3 getInertiaTensor() override;
+
+	virtual void update(float dt, glm::vec3 forces, glm::vec3 forcePoint) override;
 	virtual void draw() override;
+
 protected:
 	virtual glm::mat3 getInitialInertiaTensor() override;
 private:
 	float width, height, depth;
+	
+	glm::vec3 getTorque(glm::vec3 forcePoint, glm::vec3 forceVector);
 };
 
 class Ball : public RigidBody {
 public:
 	Ball(float radius, float mass);
+
+	virtual glm::mat3 getInertiaTensor() override;
+
+	virtual void update(float dt, glm::vec3 forces, glm::vec3 forcePoint) override;
 	virtual void draw() override;
+
 protected:
 	virtual glm::mat3 getInitialInertiaTensor() override;
 private:

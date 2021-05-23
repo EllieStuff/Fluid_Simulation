@@ -1,6 +1,7 @@
 #pragma once
 //#include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
+#include <deque>
 //#include <glm\gtc\matrix_transform.hpp>
 
 
@@ -70,11 +71,14 @@ private:
 	float colRadius;
 	int verticesSize = 8;
 	glm::vec3 *vertices, *initVertices;
+	float tolerance = 0.1f;
+	bool *checked;
 	
-	glm::vec3 Box::GetVertexPos(int idx, const State& _state);
+	glm::vec3 GetCollisionPoint(float dt, const glm::vec3& forces, const glm::vec3& forcePoint, const int& idx, const glm::vec3& normal, const float& planeD);
+	glm::vec3 GetVertexPos(int idx, const State& _state);
 	glm::vec3 getTorque(glm::vec3 forcePoint, glm::vec3 forceVector);
 	bool CheckFirstWallCollisions(const State& tmpState);
-	int CheckSecondWallCollisions(const State& tmpState);
+	bool CheckSecondWallCollisions(const State& _state, std::deque<int>& idxs, std::deque<glm::vec3>& normals, std::deque<float>& planesD);
 	void UpdateVertices();
 
 };

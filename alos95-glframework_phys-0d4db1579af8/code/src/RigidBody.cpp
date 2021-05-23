@@ -74,12 +74,14 @@ Box::Box(glm::vec3 _initPos, glm::quat _initRot, float _mass,
 		glm::vec3(_width, _height, _depth) / 2.f
 	};
 	vertices = new glm::vec3[verticesSize];
+	checked = new bool[verticesSize];
 	for (int i = 0; i < verticesSize; i++) {
 		vertices[i] = _initPos + initVertices[i];
+		checked[i] = false;
 	}
 
-	glm::vec3 center = glm::vec3(0, 0, 0);
-	colRadius = glm::distance(center, vertices[0]);
+
+	colRadius = glm::distance(_initPos, vertices[0]);
 
 	initialInertiaTensor = getInitialInertiaTensor();
 
@@ -128,54 +130,124 @@ glm::vec3 Box::GetVertexPos(int idx, const State &_state) {
 	return _state.centerOfMass + initVertices[idx]; // *getRotationMatrix();
 }
 
-int Box::CheckSecondWallCollisions(const State & _state)
+bool Box::CheckSecondWallCollisions(const State & _state, std::deque<int> &idxs, std::deque<glm::vec3> &normals, std::deque<float> &planesD)
 {
+	bool colFound = false;
+
 	for (int i = 0; i < verticesSize; i++) {
+		glm::vec3 nextVertexPos = GetVertexPos(i, _state);
+
 		//Floor
 		glm::vec3 normal = glm::normalize(CalculatePlaneNormal(boxVertex[3], boxVertex[2], boxVertex[0]));
 		float planeD = -(normal.x * boxVertex[3].x + normal.y * boxVertex[3].y + normal.z * boxVertex[3].z);
-		if (HasCollided(vertices[i], GetVertexPos(i, _state), normal, planeD)) {
-			return i;
+		if (HasCollided(vertices[i], nextVertexPos, normal, planeD)) {
+			idxs.push_back(i);
+			normals.push_back(normal);
+			planesD.push_back(planeD);
+
+			colFound = true;
 		}
 
 		//Ceiling
 		normal = glm::normalize(CalculatePlaneNormal(boxVertex[6], boxVertex[7], boxVertex[5]));
 		planeD = -(normal.x * boxVertex[6].x + normal.y * boxVertex[6].y + normal.z * boxVertex[6].z);
-		if (HasCollided(vertices[i], GetVertexPos(i, _state), normal, planeD)) {
-			return i;
+		if (HasCollided(vertices[i], nextVertexPos, normal, planeD)) {
+			idxs.push_back(i);
+			normals.push_back(normal);
+			planesD.push_back(planeD);
+
+			colFound = true;
 		}
 
 		//Left wall
 		normal = glm::normalize(CalculatePlaneNormal(boxVertex[3], boxVertex[0], boxVertex[7]));
 		planeD = (normal.x * boxVertex[3].x + normal.y * boxVertex[3].y + normal.z * boxVertex[3].z);
-		if (HasCollided(vertices[i], GetVertexPos(i, _state), normal, planeD)) {
-			return i;
+		if (HasCollided(vertices[i], nextVertexPos, normal, planeD)) {
+			idxs.push_back(i);
+			normals.push_back(normal);
+			planesD.push_back(planeD);
+
+			colFound = true;
 		}
 
 		//Right wall
 		normal = glm::normalize(CalculatePlaneNormal(boxVertex[1], boxVertex[2], boxVertex[5]));
 		planeD = (normal.x * boxVertex[1].x + normal.y * boxVertex[1].y + normal.z * boxVertex[1].z);
-		if (HasCollided(vertices[i], GetVertexPos(i, _state), normal, planeD)) {
-			return i;
+		if (HasCollided(vertices[i], nextVertexPos, normal, planeD)) {
+			idxs.push_back(i);
+			normals.push_back(normal);
+			planesD.push_back(planeD);
+
+			colFound = true;
 		}
 
 		//Rear wall
 		normal = glm::normalize(CalculatePlaneNormal(boxVertex[0], boxVertex[1], boxVertex[4]));
 		planeD = (normal.x * boxVertex[0].x + normal.y * boxVertex[0].y + normal.z * boxVertex[0].z);
-		if (HasCollided(vertices[i], GetVertexPos(i, _state), normal, planeD)) {
-			return i;
+		if (HasCollided(vertices[i], nextVertexPos, normal, planeD)) {
+			idxs.push_back(i);
+			normals.push_back(normal);
+			planesD.push_back(planeD);
+
+			colFound = true;
 		}
 
 		//Front wall
 		normal = glm::normalize(CalculatePlaneNormal(boxVertex[3], boxVertex[7], boxVertex[2]));
 		planeD = (normal.x * boxVertex[3].x + normal.y * boxVertex[3].y + normal.z * boxVertex[3].z);
-		if (HasCollided(vertices[i], GetVertexPos(i, _state), normal, planeD)) {
-			return i;
+		if (HasCollided(vertices[i], nextVertexPos, normal, planeD)) {
+			idxs.push_back(i);
+			normals.push_back(normal);
+			planesD.push_back(planeD);
+
+			colFound = true;
 		}
 
 	}
 
-	return -1;
+	return colFound;
+}
+
+float DistancePointPlane(const glm::vec3 &point, const glm::vec3 &planeNormal, const float &planeD) {
+
+	return 
+		abs((planeNormal.x * point.x) + (planeNormal.y * point.y) + (planeNormal.z * point.z) + planeD) / 
+		sqrt(pow(planeNormal.x, 2) + pow(planeNormal.y, 2) + pow(planeNormal.z, 2));
+}
+
+glm::vec3 Box::GetCollisionPoint(float dt, const glm::vec3 &forces, const glm::vec3 &forcePoint, const int &idx, const glm::vec3 &normal, const float &planeD)
+{
+	State tmpState = state;
+	// P(t+dt) = P(t) + dt * F(t)
+	tmpState.linearMomentum = tmpState.linearMomentum + (dt * forces);
+
+	// L(t+dt) = L(t) + dt * torque(t)
+	tmpState.angularMomentum = tmpState.angularMomentum + (dt * getTorque(forcePoint, forces));
+
+	// V(t+dt) = P(t+dt) / M
+	glm::vec3 linearV = tmpState.linearMomentum / mass;
+	// X(t+dt) = X(t) + dt * V(t+dt)
+	tmpState.centerOfMass = tmpState.centerOfMass + (dt * linearV);
+
+	/// rot 
+	/// ...
+	/// ...
+
+
+	
+	glm::vec3 colPoint = GetVertexPos(idx, tmpState);
+	float distPointPlane = DistancePointPlane(colPoint, normal, planeD);
+	if (distPointPlane <= tolerance) {
+		return colPoint;
+	}
+
+	if (HasCollided(vertices[idx], colPoint, normal, planeD)) {
+		return GetCollisionPoint(dt / 2, forces, forcePoint, idx, normal, planeD);
+	}
+	else {
+		return GetCollisionPoint(dt * 1.5f, forces, forcePoint, idx, normal, planeD);
+	}
+
 }
 
 void Box::UpdateVertices() {
@@ -211,10 +283,22 @@ void Box::update(float dt, glm::vec3 forces, glm::vec3 forcePoint)
 
 	if (CheckFirstWallCollisions(tmpState)) {
 		//printf("true\n");
-		int colIdx = CheckSecondWallCollisions(tmpState);
-		if (colIdx >= 0) {
-			printf("Idx %i\n", colIdx);
+		std::deque<int> colIdxs;
+		std::deque<glm::vec3> colNormals;
+		std::deque<float> colPlanesD;
+		if (CheckSecondWallCollisions(tmpState, colIdxs, colNormals, colPlanesD)) {
+			std::deque<glm::vec3> colPoints;
+			for (int i = 0; i < colIdxs.size(); i++) {
+				if (!checked[colIdxs[i]]) {
+					colPoints.push_back(GetCollisionPoint(dt, forces, forcePoint, colIdxs[i], colNormals[i], colPlanesD[i]));
 
+					//wtf peta en el printf???!!!
+					//printf("Idx %i: (%f, %f, %f)\n", colIdxs[i], colPoints[i].x, colPoints[i].y, colPoints[i].z);
+
+					checked[colIdxs[i]] = true;
+				}
+			}
+				linearV = linearV;
 		}
 		else {
 			printf("false\n");

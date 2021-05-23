@@ -3,6 +3,7 @@
 #include <glm/gtc/quaternion.hpp>
 //#include <glm\gtc\matrix_transform.hpp>
 
+
 class RigidBody {
 public:
 	struct State {
@@ -10,6 +11,17 @@ public:
 		glm::quat rotation;  // Quaternion that represents the current rotation q(t)
 		glm::vec3 linearMomentum;  // P(t)
 		glm::vec3 angularMomentum;  // L(t)
+	};
+
+	glm::vec3 boxVertex[8] = {
+		glm::vec3(-5.f,  0.f, -5.f),	//Left-Lower-Back (0)
+		glm::vec3(5.f,  0.f, -5.f),		//Right-Lower-Back(1)
+		glm::vec3(5.f,  0.f,  5.f),		//Right-Lower-Front(2)
+		glm::vec3(-5.f,  0.f,  5.f),	//Left-Lower-Front (3)
+		glm::vec3(-5.f, 10.f, -5.f),	//Left-Upper-Back (4)
+		glm::vec3(5.f, 10.f, -5.f),		//Right-Upper-Back (5)
+		glm::vec3(5.f, 10.f,  5.f),		//Right-Upper-Front (6)
+		glm::vec3(-5.f, 10.f,  5.f)		//Left-Upper-Front (7)
 	};
 
 	RigidBody(float mass) : mass(mass) {};
@@ -55,8 +67,16 @@ protected:
 	virtual glm::mat3 getInitialInertiaTensor() override;
 private:
 	float width, height, depth;
+	float colRadius;
+	int verticesSize = 8;
+	glm::vec3 *vertices, *initVertices;
 	
+	glm::vec3 Box::GetVertexPos(int idx, const State& _state);
 	glm::vec3 getTorque(glm::vec3 forcePoint, glm::vec3 forceVector);
+	bool CheckFirstWallCollisions(const State& tmpState);
+	int CheckSecondWallCollisions(const State& tmpState);
+	void UpdateVertices();
+
 };
 
 class Ball : public RigidBody {

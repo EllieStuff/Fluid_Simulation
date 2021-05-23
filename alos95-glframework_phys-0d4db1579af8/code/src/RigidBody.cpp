@@ -60,10 +60,35 @@ glm::mat3 RigidBody::getRotationMatrix() {
 Box::Box(glm::vec3 _initPos, glm::quat _initRot, float _mass,
 		glm::vec3 _linearVelocity, glm::vec3 _angularVelocity,
 		float _width, float _height, float _depth)
-	: RigidBody(_initPos, _initRot, _mass, _linearVelocity, _angularVelocity), 
-		width(_width), height(_height), depth(_depth) 
+	: RigidBody(_mass), width(_width), height(_height), depth(_depth)
 {
+	initVertices = new glm::vec3[verticesSize]
+	{
+		glm::vec3(-_width, -_height, -_depth) / 2.f,
+		glm::vec3(_width, -_height, -_depth) / 2.f,
+		glm::vec3(-_width, _height, -_depth) / 2.f,
+		glm::vec3(-_width, -_height, _depth) / 2.f,
+		glm::vec3(_width, _height, -_depth) / 2.f,
+		glm::vec3(_width, -_height, _depth) / 2.f,
+		glm::vec3(-_width, _height, _depth) / 2.f,
+		glm::vec3(_width, _height, _depth) / 2.f
+	};
+	vertices = new glm::vec3[verticesSize];
+	for (int i = 0; i < verticesSize; i++) {
+		vertices[i] = _initPos + initVertices[i];
+	}
+
+	glm::vec3 center = glm::vec3(0, 0, 0);
+	colRadius = glm::distance(center, vertices[0]);
+
 	initialInertiaTensor = getInitialInertiaTensor();
+
+	state = {
+		_initPos,
+		_initRot,
+		mass * _linearVelocity,
+		_angularVelocity* getInertiaTensor()
+	};
 }
 
 glm::mat3 Box::getInertiaTensor()
@@ -78,19 +103,100 @@ glm::vec3 Box::getTorque(glm::vec3 forcePoint, glm::vec3 forceVector)
 	return glm::cross((forcePoint - state.centerOfMass), forceVector);
 }
 
+bool Box::CheckFirstWallCollisions(const State& _state) {
+
+	return _state.centerOfMass.x + colRadius >= 5 || _state.centerOfMass.x - colRadius <= -5
+		|| _state.centerOfMass.y + colRadius >= 10 || _state.centerOfMass.y - colRadius <= 0
+		|| _state.centerOfMass.z + colRadius >= 5 || _state.centerOfMass.z - colRadius <= -5;
+}
+
+glm::vec3 CalculatePlaneNormal(glm::vec3 initVertex, glm::vec3 finalVertex1, glm::vec3 finalVertex2)
+{
+	glm::vec3 vector1 = finalVertex1 - initVertex;
+	glm::vec3 vector2 = finalVertex2 - initVertex;
+
+	return glm::cross(vector1, vector2);
+}
+
+bool HasCollided(glm::vec3 prevParticlePos, glm::vec3 particlePos, glm::vec3 normal, float planeD)
+{
+	return ((glm::dot(normal, prevParticlePos) + planeD) * (glm::dot(normal, particlePos) + planeD)) <= 0;
+}
+
+glm::vec3 Box::GetVertexPos(int idx, const State &_state) {
+	
+	return _state.centerOfMass + initVertices[idx]; // *getRotationMatrix();
+}
+
+int Box::CheckSecondWallCollisions(const State & _state)
+{
+	for (int i = 0; i < verticesSize; i++) {
+		//Floor
+		glm::vec3 normal = glm::normalize(CalculatePlaneNormal(boxVertex[3], boxVertex[2], boxVertex[0]));
+		float planeD = -(normal.x * boxVertex[3].x + normal.y * boxVertex[3].y + normal.z * boxVertex[3].z);
+		if (HasCollided(vertices[i], GetVertexPos(i, _state), normal, planeD)) {
+			return i;
+		}
+
+		//Ceiling
+		normal = glm::normalize(CalculatePlaneNormal(boxVertex[6], boxVertex[7], boxVertex[5]));
+		planeD = -(normal.x * boxVertex[6].x + normal.y * boxVertex[6].y + normal.z * boxVertex[6].z);
+		if (HasCollided(vertices[i], GetVertexPos(i, _state), normal, planeD)) {
+			return i;
+		}
+
+		//Left wall
+		normal = glm::normalize(CalculatePlaneNormal(boxVertex[3], boxVertex[0], boxVertex[7]));
+		planeD = (normal.x * boxVertex[3].x + normal.y * boxVertex[3].y + normal.z * boxVertex[3].z);
+		if (HasCollided(vertices[i], GetVertexPos(i, _state), normal, planeD)) {
+			return i;
+		}
+
+		//Right wall
+		normal = glm::normalize(CalculatePlaneNormal(boxVertex[1], boxVertex[2], boxVertex[5]));
+		planeD = (normal.x * boxVertex[1].x + normal.y * boxVertex[1].y + normal.z * boxVertex[1].z);
+		if (HasCollided(vertices[i], GetVertexPos(i, _state), normal, planeD)) {
+			return i;
+		}
+
+		//Rear wall
+		normal = glm::normalize(CalculatePlaneNormal(boxVertex[0], boxVertex[1], boxVertex[4]));
+		planeD = (normal.x * boxVertex[0].x + normal.y * boxVertex[0].y + normal.z * boxVertex[0].z);
+		if (HasCollided(vertices[i], GetVertexPos(i, _state), normal, planeD)) {
+			return i;
+		}
+
+		//Front wall
+		normal = glm::normalize(CalculatePlaneNormal(boxVertex[3], boxVertex[7], boxVertex[2]));
+		planeD = (normal.x * boxVertex[3].x + normal.y * boxVertex[3].y + normal.z * boxVertex[3].z);
+		if (HasCollided(vertices[i], GetVertexPos(i, _state), normal, planeD)) {
+			return i;
+		}
+
+	}
+
+	return -1;
+}
+
+void Box::UpdateVertices() {
+	for (int i = 0; i < verticesSize; i++) {
+		vertices[i] = state.centerOfMass + initVertices[i] * getRotationMatrix();
+	}
+}
+
 void Box::update(float dt, glm::vec3 forces, glm::vec3 forcePoint)
 {
-	State tmpState;
+	State tmpState = state;
 	// P(t+dt) = P(t) + dt * F(t)
-	state.linearMomentum = state.linearMomentum + (dt * forces);
+	tmpState.linearMomentum = tmpState.linearMomentum + (dt * forces);
 
 	// L(t+dt) = L(t) + dt * torque(t)
-	state.angularMomentum = state.angularMomentum + (dt * getTorque(forcePoint, forces));
+	tmpState.angularMomentum = tmpState.angularMomentum + (dt * getTorque(forcePoint, forces));
 	
 	// V(t+dt) = P(t+dt) / M
-	glm::vec3 linearV = state.linearMomentum / mass;
+	glm::vec3 linearV = tmpState.linearMomentum / mass;
 	// X(t+dt) = X(t) + dt * V(t+dt)
-	state.centerOfMass = state.centerOfMass + (dt * linearV);
+	tmpState.centerOfMass = tmpState.centerOfMass + (dt * linearV);
 
 	// ToDo:
 	//// I(t)^-1 = R(t) * I(body)^-1 * R(t)^T
@@ -101,6 +207,26 @@ void Box::update(float dt, glm::vec3 forces, glm::vec3 forcePoint)
 	////state.rotation = state.rotation + (dt * (glm::cross(angularW, glm::axis(state.rotation))));
 	//state.rotation 
 
+
+
+	if (CheckFirstWallCollisions(tmpState)) {
+		//printf("true\n");
+		int colIdx = CheckSecondWallCollisions(tmpState);
+		if (colIdx >= 0) {
+			printf("Idx %i\n", colIdx);
+
+		}
+		else {
+			printf("false\n");
+		}
+
+	}
+	else {
+		//printf("false\n");
+	}
+
+
+	//UpdateVertices();
 	setState(tmpState);
 }
 

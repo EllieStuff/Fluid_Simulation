@@ -80,6 +80,7 @@ Box::Box(glm::vec3 _initPos, glm::quat _initRot, float _mass,
 
 	glm::vec3 center = glm::vec3(0, 0, 0);
 	colRadius = glm::distance(center, vertices[0]);
+	dtRest = 0;
 
 	initialInertiaTensor = getInitialInertiaTensor();
 
@@ -211,13 +212,25 @@ void Box::update(float dt, glm::vec3 forces, glm::vec3 forcePoint)
 
 	if (CheckFirstWallCollisions(tmpState)) {
 		//printf("true\n");
-		int colIdx = CheckSecondWallCollisions(tmpState);
-		if (colIdx >= 0) {
+		int colIdx = CheckSecondWallCollisions(tmpState);	//RETORNA LA POSICIÓ
+		if (/*colIdx >= 0*//*COMPROVEM SI LA POSICIÓ DE CONTACTE ESTÀ A DINS DEL MARGE DE TOLERÀNCIA*/) {	
 			printf("Idx %i\n", colIdx);
-
+			setState(tmpState);
+			
 		}
 		else {
-			printf("false\n");
+			if (/*PER SOTA DEL LIMIT DE TOLERÀNCIA*/)
+			{
+				dtRest = dtRest + dt / 2;
+				Box::update(dt + (dt / 2), forces, forcePoint);
+			}
+			else if (/*PER SOBRE DEL LIMIT DE TOLERÀNCIA*/)
+			{
+				dtRest = dt / 2;
+				Box::update(dt - dtRest, forces, forcePoint);
+			}
+			
+			//printf("false\n");
 		}
 
 	}
@@ -227,7 +240,7 @@ void Box::update(float dt, glm::vec3 forces, glm::vec3 forcePoint)
 
 
 	//UpdateVertices();
-	setState(tmpState);
+	//setState(tmpState);
 }
 
 void Box::draw() {

@@ -68,6 +68,7 @@ protected:
 private:
 	float width, height, depth;
 	float colRadius;
+	float dtRest;
 	int verticesSize = 8;
 	glm::vec3 *vertices, *initVertices;
 	

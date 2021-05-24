@@ -215,7 +215,7 @@ float DistancePointPlane(const glm::vec3 &point, const glm::vec3 &planeNormal, c
 		sqrt(pow(planeNormal.x, 2) + pow(planeNormal.y, 2) + pow(planeNormal.z, 2));
 }
 
-glm::vec3 Box::GetCollisionPoint(float dt, const glm::vec3 &forces, const glm::vec3 &forcePoint, const int &idx, const glm::vec3 &normal, const float &planeD)
+glm::vec4 Box::GetCollisionPointData(float dt, const float &realDt, const glm::vec3 &forces, const glm::vec3 &forcePoint, const int &idx, const glm::vec3 &normal, const float &planeD)
 {
 	State tmpState = state;
 	// P(t+dt) = P(t) + dt * F(t)
@@ -235,17 +235,17 @@ glm::vec3 Box::GetCollisionPoint(float dt, const glm::vec3 &forces, const glm::v
 
 
 	
-	glm::vec3 colPoint = GetVertexPos(idx, tmpState);
+	glm::vec4 colPoint = glm::vec4(GetVertexPos(idx, tmpState), dt);
 	float distPointPlane = DistancePointPlane(colPoint, normal, planeD);
 	if (distPointPlane <= tolerance) {
 		return colPoint;
 	}
 
 	if (HasCollided(vertices[idx], colPoint, normal, planeD)) {
-		return GetCollisionPoint(dt / 2, forces, forcePoint, idx, normal, planeD);
+		return GetCollisionPointData(dt / 2, realDt, forces, forcePoint, idx, normal, planeD);
 	}
 	else {
-		return GetCollisionPoint(dt * 1.5f, forces, forcePoint, idx, normal, planeD);
+		return GetCollisionPointData(dt + ((realDt - dt) / 2), realDt, forces, forcePoint, idx, normal, planeD);
 	}
 
 }
@@ -272,9 +272,9 @@ void Box::update(float dt, glm::vec3 forces, glm::vec3 forcePoint)
 
 	// ToDo:
 	//// I(t)^-1 = R(t) * I(body)^-1 * R(t)^T
-	//glm::mat3 inverseInertia = glm::inverse(getInertiaTensor());
+	glm::mat3 inverseInertia = glm::inverse(getInertiaTensor());
 	//// W(t) = I(t)^-1 * L(t+dt)
-	//glm::vec3 angularW = inverseInertia * state.angularMomentum;
+	glm::vec3 angularW = inverseInertia * tmpState.angularMomentum;
 	//// R(t+dt) = R(t) + dt * ( W(t) * R(t) )
 	////state.rotation = state.rotation + (dt * (glm::cross(angularW, glm::axis(state.rotation))));
 	//state.rotation 
@@ -288,17 +288,31 @@ void Box::update(float dt, glm::vec3 forces, glm::vec3 forcePoint)
 		std::deque<float> colPlanesD;
 		if (CheckSecondWallCollisions(tmpState, colIdxs, colNormals, colPlanesD)) {
 			std::deque<glm::vec3> colPoints;
+			std::deque<float> colDts;
 			for (int i = 0; i < colIdxs.size(); i++) {
 				if (!checked[colIdxs[i]]) {
-					colPoints.push_back(GetCollisionPoint(dt, forces, forcePoint, colIdxs[i], colNormals[i], colPlanesD[i]));
+					glm::vec4 colData = GetCollisionPointData(dt, dt, forces, forcePoint, colIdxs[i], colNormals[i], colPlanesD[i]);
+					colPoints.push_back(glm::vec3(colData));
+					colDts.push_back(colData.z);
 
 					//wtf peta en el printf???!!!
-					//printf("Idx %i: (%f, %f, %f)\n", colIdxs[i], colPoints[i].x, colPoints[i].y, colPoints[i].z);
+					printf("Idx %i: (%f, %f, %f)\n", colIdxs[i], colPoints[i].x, colPoints[i].y, colPoints[i].z);
 
 					checked[colIdxs[i]] = true;
 				}
+
+				//// P(t0) = V(t0) + W(t0) X (P(t0) - X(t0))
+				glm::vec3 nextPos = linearV + glm::cross(angularW, colPoints[i] - tmpState.centerOfMass);
+				float relV = glm::dot(colNormals[i], nextPos - glm::vec3(0, 0, 0));	//Si la paret es mogues, en contres de 0 seria nextPosB
+				float elasticityK = 1.f;
+				relV = -(relV * elasticityK);
+
+
+
 			}
-				linearV = linearV;
+
+
+
 		}
 		else {
 			printf("false\n");

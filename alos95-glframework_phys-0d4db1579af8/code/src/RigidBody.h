@@ -71,10 +71,10 @@ private:
 	float colRadius;
 	int verticesSize = 8;
 	glm::vec3 *vertices, *initVertices;
-	float tolerance = 0.1f;
+	float tolerance = 0.01f;
 	bool *checked;
 	
-	glm::vec3 GetCollisionPoint(float dt, const glm::vec3& forces, const glm::vec3& forcePoint, const int& idx, const glm::vec3& normal, const float& planeD);
+	glm::vec4 GetCollisionPointData(float dt, const float &realDt, const glm::vec3& forces, const glm::vec3& forcePoint, const int& idx, const glm::vec3& normal, const float& planeD);
 	glm::vec3 GetVertexPos(int idx, const State& _state);
 	glm::vec3 getTorque(glm::vec3 forcePoint, glm::vec3 forceVector);
 	bool CheckFirstWallCollisions(const State& tmpState);

@@ -74,10 +74,8 @@ Box::Box(glm::vec3 _initPos, glm::quat _initRot, float _mass,
 		glm::vec3(_width, _height, _depth) / 2.f
 	};
 	vertices = new glm::vec3[verticesSize];
-	checked = new bool[verticesSize];
 	for (int i = 0; i < verticesSize; i++) {
 		vertices[i] = _initPos + initVertices[i];
-		checked[i] = false;
 	}
 
 
@@ -215,7 +213,7 @@ float DistancePointPlane(const glm::vec3 &point, const glm::vec3 &planeNormal, c
 		sqrt(pow(planeNormal.x, 2) + pow(planeNormal.y, 2) + pow(planeNormal.z, 2));
 }
 
-glm::vec4 Box::GetCollisionPointData(float dt, const float &realDt, const glm::vec3 &forces, const glm::vec3 &forcePoint, const int &idx, const glm::vec3 &normal, const float &planeD)
+Box::ColData Box::GetCollisionPointData(float dt, const float &realDt, const glm::vec3 &forces, const glm::vec3 &forcePoint, const int &idx, const glm::vec3 &normal, const float &planeD)
 {
 	State tmpState = state;
 	// P(t+dt) = P(t) + dt * F(t)
@@ -234,11 +232,11 @@ glm::vec4 Box::GetCollisionPointData(float dt, const float &realDt, const glm::v
 	/// ...
 
 
-	
-	glm::vec4 colPoint = glm::vec4(GetVertexPos(idx, tmpState), dt);
+	glm::vec3 colPoint = GetVertexPos(idx, tmpState);
 	float distPointPlane = DistancePointPlane(colPoint, normal, planeD);
-	if (distPointPlane <= tolerance) {		//NAN????
-		return colPoint;
+	if (distPointPlane <= tolerance) {		//NAN???? ---> Per algun motiu el state.linearMomentum es NaN a la 3a iteracio
+		ColData colData = { tmpState.centerOfMass, colPoint, dt };
+		return colData;
 	}
 
 	if (HasCollided(vertices[idx], colPoint, normal, planeD)) {
@@ -246,6 +244,32 @@ glm::vec4 Box::GetCollisionPointData(float dt, const float &realDt, const glm::v
 	}
 	else {
 		return GetCollisionPointData(dt + ((realDt - dt) / 2), realDt, forces, forcePoint, idx, normal, planeD);
+	}
+
+}
+
+bool Box::IdAvailable(int id)
+{
+	for (auto it = checkedIds.begin(); it != checkedIds.end(); it++) {
+		if (it->id == id) return false;
+	}
+
+	return true;
+}
+
+void Box::CleanCheckedIds()
+{
+	for (int i = 0; i < checkedIds.size(); i++) {
+		if (checkedIds[i].flag == false) {
+			checkedIds[i].flag = true;
+		}
+		else {
+			auto it = checkedIds.begin();
+			while (it != checkedIds.end() && it->id != i)
+				it++;
+			checkedIds.erase(it);
+		}
+
 	}
 
 }
@@ -270,15 +294,21 @@ void Box::update(float dt, glm::vec3 forces, glm::vec3 forcePoint)
 	// X(t+dt) = X(t) + dt * V(t+dt)
 	tmpState.centerOfMass = tmpState.centerOfMass + (dt * linearV);
 
-	// ToDo:
-	//// I(t)^-1 = R(t) * I(body)^-1 * R(t)^T
-	glm::mat3 inverseInertia = glm::inverse(getInertiaTensor());
-	//// W(t) = I(t)^-1 * L(t+dt)
-	glm::vec3 angularW = inverseInertia * tmpState.angularMomentum;
-	//// R(t+dt) = R(t) + dt * ( W(t) * R(t) )
-	////state.rotation = state.rotation + (dt * (glm::cross(angularW, glm::axis(state.rotation))));
-	//state.rotation 
+	//// ToDo:
+	////// I(t)^-1 = R(t) * I(body)^-1 * R(t)^T
+	//glm::mat3 inverseInertia = glm::inverse(getInertiaTensor());
+	////// W(t) = I(t)^-1 * L(t+dt)
+	//glm::vec3 angularW = inverseInertia * tmpState.angularMomentum;
+	////// R(t+dt) = R(t) + dt * ( W(t) * R(t) )
+	//////state.rotation = state.rotation + (dt * (glm::cross(angularW, glm::axis(state.rotation))));
+	////state.rotation 
 
+	glm::mat3 inverseInertia = glm::mat3(
+		1, 0, 0, 
+		0, 1, 0,
+		0, 0, 1
+		);
+	glm::vec3 angularW = glm::vec3(0, 0, 0);
 
 
 	if (CheckFirstWallCollisions(tmpState)) {
@@ -287,24 +317,21 @@ void Box::update(float dt, glm::vec3 forces, glm::vec3 forcePoint)
 		std::deque<glm::vec3> colNormals;
 		std::deque<float> colPlanesD;
 		if (CheckSecondWallCollisions(tmpState, colIdxs, colNormals, colPlanesD)) {
-			std::deque<glm::vec3> colPoints;
-			std::deque<float> colDts;
+			std::deque<ColData> colData;
 			for (int i = 0; i < colIdxs.size(); i++) {
-				if (!checked[colIdxs[i]]) {
-					glm::vec4 colData = GetCollisionPointData(dt, dt, forces, forcePoint, colIdxs[i], colNormals[i], colPlanesD[i]);
-					colPoints.push_back(glm::vec3(colData));
-					colDts.push_back(colData.z);
+				if (IdAvailable(i)) {
+					colData.push_back(GetCollisionPointData(dt, dt, forces, forcePoint, colIdxs[i], colNormals[i], colPlanesD[i]));
 
 					//wtf peta en el printf???!!!
 					//printf("Idx %i: (%f, %f, %f)\n", colIdxs[i], colPoints[i].x, colPoints[i].y, colPoints[i].z);
 
-					checked[colIdxs[i]] = true;
+					checkedIds.push_back(FlaggedId(i));
 
-					glm::vec3 r = colPoints[i] - state.centerOfMass;
+					glm::vec3 r = colData[i].colCenterOfMass - state.centerOfMass;
 
-					//// P(t0) = V(t0) + W(t0) X (P(t0) - X(t0))
-					glm::vec3 nextPos = linearV + glm::cross(angularW, r);
-					float relV = glm::dot(colNormals[i], nextPos - glm::vec3(0, 0, 0));	//Si la paret es mogues, en contres de 0 seria nextPosB
+					//// P(t0) = V(t0) + (W(t0) X (P(t0) - X(t0)))
+					glm::vec3 posDerivate = linearV + glm::cross(angularW, r);
+					float relV = glm::dot(colNormals[i], posDerivate - glm::vec3(0, 0, 0));	//Si la paret es mogues, en contres de 0 seria posDerivateB
 					float elasticityK = 1.f;
 					relV = -(relV * (1 + elasticityK));
 
@@ -314,7 +341,7 @@ void Box::update(float dt, glm::vec3 forces, glm::vec3 forcePoint)
 					glm::vec3 impulse = impulseMagnitude * colNormals[i];
 
 					//P(t0)' = P(t0) + J"impulse"
-					state.linearMomentum += impulse;
+					tmpState.linearMomentum += (impulse / 4.f);
 
 					//Torque = (punt de contacte - CoM(t)) X impulse
 					//glm::vec3 torque = glm::cross(r, impulse);
@@ -322,9 +349,8 @@ void Box::update(float dt, glm::vec3 forces, glm::vec3 forcePoint)
 					//L(t0)' = L(t0) + Torque
 					//state.angularMomentum += torque;
 				}
+
 			}
-
-
 
 		}
 		else {
@@ -335,6 +361,10 @@ void Box::update(float dt, glm::vec3 forces, glm::vec3 forcePoint)
 	else {
 		//printf("false\n");
 	}
+
+
+	// ToDo: Crec que peta en tornar a entrar aqui
+	CleanCheckedIds();
 
 
 	//UpdateVertices();

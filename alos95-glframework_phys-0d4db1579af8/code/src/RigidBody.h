@@ -14,6 +14,20 @@ public:
 		glm::vec3 angularMomentum;  // L(t)
 	};
 
+	struct ColData {
+		glm::vec3 colCenterOfMass;
+		glm::vec3 colPoint;
+		float colDt;
+	};
+
+	struct FlaggedId {
+		int id;
+		bool flag = false;
+
+		FlaggedId() {};
+		FlaggedId(int _id) : id(_id) {};
+	};
+
 	glm::vec3 boxVertex[8] = {
 		glm::vec3(-5.f,  0.f, -5.f),	//Left-Lower-Back (0)
 		glm::vec3(5.f,  0.f, -5.f),		//Right-Lower-Back(1)
@@ -72,14 +86,17 @@ private:
 	int verticesSize = 8;
 	glm::vec3 *vertices, *initVertices;
 	float tolerance = 0.1f;
-	bool *checked;
+	//bool *checked;
+	std::deque<FlaggedId> checkedIds;
 	
-	glm::vec4 GetCollisionPointData(float dt, const float &realDt, const glm::vec3& forces, const glm::vec3& forcePoint, const int& idx, const glm::vec3& normal, const float& planeD);
+	ColData GetCollisionPointData(float dt, const float &realDt, const glm::vec3& forces, const glm::vec3& forcePoint, const int& idx, const glm::vec3& normal, const float& planeD);
 	glm::vec3 GetVertexPos(int idx, const State& _state);
 	glm::vec3 getTorque(glm::vec3 forcePoint, glm::vec3 forceVector);
 	bool CheckFirstWallCollisions(const State& tmpState);
 	bool CheckSecondWallCollisions(const State& _state, std::deque<int>& idxs, std::deque<glm::vec3>& normals, std::deque<float>& planesD);
 	void UpdateVertices();
+	bool IdAvailable(int id);
+	void CleanCheckedIds();
 
 };
 

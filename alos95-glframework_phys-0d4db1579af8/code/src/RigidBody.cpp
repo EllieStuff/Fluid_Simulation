@@ -237,7 +237,7 @@ glm::vec4 Box::GetCollisionPointData(float dt, const float &realDt, const glm::v
 	
 	glm::vec4 colPoint = glm::vec4(GetVertexPos(idx, tmpState), dt);
 	float distPointPlane = DistancePointPlane(colPoint, normal, planeD);
-	if (distPointPlane <= tolerance) {
+	if (distPointPlane <= tolerance) {		//NAN????
 		return colPoint;
 	}
 
@@ -296,19 +296,32 @@ void Box::update(float dt, glm::vec3 forces, glm::vec3 forcePoint)
 					colDts.push_back(colData.z);
 
 					//wtf peta en el printf???!!!
-					printf("Idx %i: (%f, %f, %f)\n", colIdxs[i], colPoints[i].x, colPoints[i].y, colPoints[i].z);
+					//printf("Idx %i: (%f, %f, %f)\n", colIdxs[i], colPoints[i].x, colPoints[i].y, colPoints[i].z);
 
 					checked[colIdxs[i]] = true;
+
+					glm::vec3 r = colPoints[i] - state.centerOfMass;
+
+					//// P(t0) = V(t0) + W(t0) X (P(t0) - X(t0))
+					glm::vec3 nextPos = linearV + glm::cross(angularW, r);
+					float relV = glm::dot(colNormals[i], nextPos - glm::vec3(0, 0, 0));	//Si la paret es mogues, en contres de 0 seria nextPosB
+					float elasticityK = 1.f;
+					relV = -(relV * (1 + elasticityK));
+
+					float impulseMagnitude = relV / (1 / mass) + 0 + glm::dot(colNormals[i], glm::cross(inverseInertia * (glm::cross(r, colNormals[i])), r)) + 0;
+					//								Wall mass																						Compute of wall impulse
+
+					glm::vec3 impulse = impulseMagnitude * colNormals[i];
+
+					//P(t0)' = P(t0) + J"impulse"
+					state.linearMomentum += impulse;
+
+					//Torque = (punt de contacte - CoM(t)) X impulse
+					//glm::vec3 torque = glm::cross(r, impulse);
+
+					//L(t0)' = L(t0) + Torque
+					//state.angularMomentum += torque;
 				}
-
-				//// P(t0) = V(t0) + W(t0) X (P(t0) - X(t0))
-				glm::vec3 nextPos = linearV + glm::cross(angularW, colPoints[i] - tmpState.centerOfMass);
-				float relV = glm::dot(colNormals[i], nextPos - glm::vec3(0, 0, 0));	//Si la paret es mogues, en contres de 0 seria nextPosB
-				float elasticityK = 1.f;
-				relV = -(relV * elasticityK);
-
-
-
 			}
 
 

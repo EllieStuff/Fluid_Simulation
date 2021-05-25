@@ -71,7 +71,7 @@ private:
 	float colRadius;
 	int verticesSize = 8;
 	glm::vec3 *vertices, *initVertices;
-	float tolerance = 0.01f;
+	float tolerance = 0.1f;
 	bool *checked;
 	
 	glm::vec4 GetCollisionPointData(float dt, const float &realDt, const glm::vec3& forces, const glm::vec3& forcePoint, const int& idx, const glm::vec3& normal, const float& planeD);

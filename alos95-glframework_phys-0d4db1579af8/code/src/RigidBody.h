@@ -92,7 +92,7 @@ private:
 	float colRadius;
 	int verticesSize = 8;
 	glm::vec3 *vertices, *initVertices;
-	float tolerance = 0.1f;
+	float tolerance = 0.01f;
 	//bool *checked;
 	std::deque<FlaggedId> checkedIds;
 	

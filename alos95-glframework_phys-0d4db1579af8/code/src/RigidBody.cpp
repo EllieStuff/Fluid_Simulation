@@ -264,7 +264,7 @@ void Box::CleanCheckedIds()
 		}
 		else {
 			auto it = checkedIds.begin();
-			while (it != checkedIds.end() && it->id != i)
+			while (it != checkedIds.end() && it->id != checkedIds[i].id)
 				it++;
 			checkedIds.erase(it);
 		}
@@ -283,6 +283,7 @@ void Box::update(float dt, glm::vec3 forces, glm::vec3 forcePoint)
 {
 	State tmpState = state;
 
+	forces += glm::vec3(0, -9.81f * mass, 0);
 	// P(t+dt) = P(t) + dt * F(t)
 	tmpState.linearMomentum = tmpState.linearMomentum + (dt * forces);
 
@@ -332,13 +333,13 @@ void Box::update(float dt, glm::vec3 forces, glm::vec3 forcePoint)
 		if (CheckSecondWallCollisions(tmpState, colIdxs, colNormals, colPlanesD)) {
 			std::deque<ColData> colData;
 			for (int i = 0; i < colIdxs.size(); i++) {
-				if (IdAvailable(i)) {
+				if (IdAvailable(colIdxs[i])) {
 					colData.push_back(GetCollisionPointData(dt, dt, forces, forcePoint, colIdxs[i], colNormals[i], colPlanesD[i]));
 
 					//wtf peta en el printf???!!!
 					//printf("Idx %i: (%f, %f, %f)\n", colIdxs[i], colPoints[i].x, colPoints[i].y, colPoints[i].z);
 
-					checkedIds.push_back(FlaggedId(i));
+					checkedIds.push_back(FlaggedId(colIdxs[i]));
 
 					glm::vec3 r = colData[i].colCenterOfMass - state.centerOfMass;
 

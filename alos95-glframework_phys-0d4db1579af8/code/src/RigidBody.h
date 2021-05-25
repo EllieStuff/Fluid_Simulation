@@ -10,6 +10,13 @@ public:
 		glm::quat rotation;  // Quaternion that represents the current rotation q(t)
 		glm::vec3 linearMomentum;  // P(t)
 		glm::vec3 angularMomentum;  // L(t)
+
+		State() {};
+		State(glm::vec3 _centerOfMass, glm::quat _rotation, glm::vec3 _linearMomentum, glm::vec3 _angularMomentum)
+			: centerOfMass(_centerOfMass), rotation(_rotation), linearMomentum(_linearMomentum), angularMomentum(_angularMomentum) {};
+		State(const State& s)
+			: centerOfMass(s.centerOfMass), rotation(s.rotation), linearMomentum(s.linearMomentum), angularMomentum(s.angularMomentum) {};
+
 	};
 
 	RigidBody(float mass) : mass(mass) {};

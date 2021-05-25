@@ -11,6 +11,11 @@ namespace Sphere {
 
 RigidBody::RigidBody(glm::vec3 initialPosition, glm::quat initialRotation, float mass, glm::vec3 linearSpeed, glm::vec3 angularSpeed) {
 	this->mass = mass;
+
+	/*state.centerOfMass = initialPosition;
+	state.rotation = initialRotation;
+	state.linearMomentum = mass * linearSpeed;
+	state.angularMomentum = angularSpeed * getInertiaTensor();*/
 	initializeState(initialPosition, initialRotation, linearSpeed, angularSpeed);
 }
 
@@ -18,12 +23,12 @@ void RigidBody::initializeState(glm::vec3 initialPosition, glm::quat initialRota
 	// Initialize the state outside the constructor to use the virtual method getInitialInertiaTensor
 	//initialInertiaTensor = getInitialInertiaTensor();
 
-	state = {
+	state = State(
 		initialPosition,
 		initialRotation,
 		mass * linearSpeed,
 		angularSpeed * getInertiaTensor()
-	};
+	);
 }
 
 RigidBody::State RigidBody::getState() {
@@ -60,10 +65,10 @@ glm::mat3 RigidBody::getRotationMatrix() {
 Box::Box(glm::vec3 _initPos, glm::quat _initRot, float _mass,
 		glm::vec3 _linearVelocity, glm::vec3 _angularVelocity,
 		float _width, float _height, float _depth)
-	: RigidBody(_initPos, _initRot, _mass, _linearVelocity, _angularVelocity), 
-		width(_width), height(_height), depth(_depth) 
+	: RigidBody(_mass), width(_width), height(_height), depth(_depth) 
 {
 	initialInertiaTensor = getInitialInertiaTensor();
+	initializeState(_initPos, _initRot, _linearVelocity, _angularVelocity);
 }
 
 glm::mat3 Box::getInertiaTensor()
@@ -80,26 +85,40 @@ glm::vec3 Box::getTorque(glm::vec3 forcePoint, glm::vec3 forceVector)
 
 void Box::update(float dt, glm::vec3 forces, glm::vec3 forcePoint)
 {
-	State tmpState;
+	State tmpState = state;
+
 	// P(t+dt) = P(t) + dt * F(t)
-	state.linearMomentum = state.linearMomentum + (dt * forces);
+	tmpState.linearMomentum = tmpState.linearMomentum + (dt * forces);
 
 	// L(t+dt) = L(t) + dt * torque(t)
-	state.angularMomentum = state.angularMomentum + (dt * getTorque(forcePoint, forces));
+	tmpState.angularMomentum = tmpState.angularMomentum + (dt * getTorque(forcePoint, forces));
 	
 	// V(t+dt) = P(t+dt) / M
-	glm::vec3 linearV = state.linearMomentum / mass;
+	glm::vec3 linearV = tmpState.linearMomentum / mass;
 	// X(t+dt) = X(t) + dt * V(t+dt)
-	state.centerOfMass = state.centerOfMass + (dt * linearV);
+	tmpState.centerOfMass = tmpState.centerOfMass + (dt * linearV);
 
-	// ToDo:
-	//// I(t)^-1 = R(t) * I(body)^-1 * R(t)^T
-	//glm::mat3 inverseInertia = glm::inverse(getInertiaTensor());
-	//// W(t) = I(t)^-1 * L(t+dt)
-	//glm::vec3 angularW = inverseInertia * state.angularMomentum;
-	//// R(t+dt) = R(t) + dt * ( W(t) * R(t) )
-	////state.rotation = state.rotation + (dt * (glm::cross(angularW, glm::axis(state.rotation))));
-	//state.rotation 
+	// ToDo: que ruli
+	// ----
+
+	// I(t)^-1 = R(t) * I(body)^-1 * R(t)^T
+	glm::mat3 inverseInertia = glm::inverse(getInertiaTensor());
+	// W(t) = I(t)^-1 * L(t+dt)
+	glm::vec3 angularW = inverseInertia * tmpState.angularMomentum;
+	// R(t+dt) = R(t) + dt * ( W(t) * R(t) ) 
+	glm::vec3 oldAxis = glm::axis(tmpState.rotation);
+	glm::vec3 newAxis = glm::cross(angularW, glm::axis(tmpState.rotation));
+
+	float newAngle = 0; 
+	float newAngleLength = glm::length(oldAxis) * glm::length(newAxis);
+	if (newAngleLength != 0)
+		newAngle = acos(glm::dot(oldAxis, newAxis) / newAngleLength);
+	glm::quat newRot = glm::angleAxis(newAngle, newAxis);
+
+	tmpState.rotation = tmpState.rotation * newRot;
+
+	// ----
+
 
 	setState(tmpState);
 }
@@ -113,9 +132,9 @@ void Box::draw() {
 }
 
 glm::mat3 Box::getInitialInertiaTensor() {
-	float inertia_0_0 = 1 / 12 * mass * (pow(height, 2) + pow(depth, 2));
-	float inertia_1_1 = 1 / 12 * mass * (pow(width, 2) + pow(depth, 2));
-	float inertia_2_2 = 1 / 12 * mass * (pow(width, 2) + pow(height, 2));
+	float inertia_0_0 = 1.f / 12.f * mass * (pow(height, 2) + pow(depth, 2));
+	float inertia_1_1 = 1.f / 12.f * mass * (pow(width, 2) + pow(depth, 2));
+	float inertia_2_2 = 1.f / 12.f * mass * (pow(width, 2) + pow(height, 2));
 
 	return glm::mat3(
 		inertia_0_0,	0.f,			0.f,

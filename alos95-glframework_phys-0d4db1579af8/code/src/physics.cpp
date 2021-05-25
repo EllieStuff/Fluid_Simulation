@@ -12,35 +12,41 @@ extern void Exemple_PhysicsInit();
 extern void Exemple_PhysicsUpdate(float dt);
 extern void Exemple_PhysicsCleanup();
 
-
-//ParticleSystem ps;
-float angle = 0, initialAngle = 0;
-int nextParticleIdx = 0;
 extern bool renderParticles;
 extern bool renderSphere;
 extern bool renderCapsule;
 extern bool renderCloth;
 extern bool renderCube;
-float maxAge = 30.f;
-const int INIT_PARTICLES = 1000;
-//float currTime = 1.f / ps.emissionRate;
-bool emissionType = true;
 float tempo = 0;
-
-
-
-//Mesh mesh;
-glm::vec3 meshPos = glm::vec3(-4.f, 8, 3);
-float stretchElasticity = 10000.0f, stretchDamping = 0.9f;
-float shearElasticity = 10000.0f, shearDamping = 0.9f;
-float bendElasticity = 10000.0f, bendDamping = 0.9f;
-float rowRestDist = 0.3f, colRestDist = 0.3f;
 
 glm::vec3 spherePos;
 float sphereRadius;
 
 Box* box;
+glm::vec3 boxPos = glm::vec3(0.f, 5.f, 0.f);
+glm::vec3 initForcePoint;
+glm::vec3 initForce;
+glm::quat boxRot = glm::quat(0.f, 0.f, 0.f, 0.f);
+float boxMass = 1.f;
+glm::vec3 boxLVel = glm::vec3(0.f, 0.f, 0.f);
+glm::vec3 boxWVel = glm::vec3(440.f, 6.f, 0.f);
+float boxWidth = 1.f, boxHeight = 1.f, boxDepth = 1.f;
 
+void ResetBox() {
+	boxPos = glm::vec3((rand() % 10) - 5, (rand() % 9) + 1, (rand() % 10) - 5);
+	initForcePoint = glm::vec3((rand() % 2) - 1, (rand() % 2) - 1, (rand() % 2) - 1);
+	initForce = glm::vec3((rand() % 4), (rand() % 7), (rand() % 4));
+
+
+	box = new Box(
+		boxPos,
+		boxRot,
+		boxMass,
+		boxLVel,
+		boxWVel,
+		boxWidth, boxHeight, boxDepth
+	);
+}
 
 bool show_test_window = false;
 void GUI() {
@@ -49,7 +55,11 @@ void GUI() {
 
 	{
 		ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);//FrameRate
-		ImGui::Text("Time Since StartUp: %.4f", tempo);
+		ImGui::Text("Time Since StartUp: %.2f / 15", tempo);
+		if (ImGui::Button("Reset")) {
+			tempo = 0;
+			ResetBox();
+		}
 		/*if (ImGui::Button("Reset")) {
 			tempo = 0;
 			spherePos = glm::vec3((rand() % 10) - 5, rand() % 10, (rand() % 10) - 5);
@@ -97,21 +107,7 @@ void PhysicsInit() {
 
 	renderCube = true;
 	if (renderCube) {
-		glm::vec3 boxPos = glm::vec3(0.f, 5.f, 0.f);
-		glm::quat boxRot = glm::quat(0.f, 0.f, 0.f, 0.f);
-		float boxMass = 1.f;
-		glm::vec3 boxLVel = glm::vec3(0.f, 0.f, 0.f);
-		glm::vec3 boxWVel = glm::vec3(0.f, 0.f, 0.f);
-		float boxWidth = 1.f, boxHeight = 1.f, boxDepth = 1.f;
-
-		box = new Box(
-			boxPos,
-			boxRot,
-			boxMass,
-			boxLVel,
-			boxWVel,
-			boxWidth, boxHeight, boxDepth
-		);
+		ResetBox();
 	}
 }
 
@@ -126,10 +122,10 @@ void PhysicsUpdate(float dt) {
 	else if (!emissionType)
 		UpdateCascade(dt);*/
 
-	if (tempo >= 20.f)
+	if (tempo >= 15.f)
 	{
 		tempo = 0;
-		// ToDo: do stuff here
+		ResetBox();
 	}
 
 	/*if (renderSphere) {
@@ -137,6 +133,8 @@ void PhysicsUpdate(float dt) {
 		Sphere::drawSphere();
 	}*/
 	if (renderCube) {
+		glm::vec3 forcePoint = box->getState().centerOfMass + initForcePoint;
+		box->update(dt, initForce, forcePoint);
 		box->draw();
 	}
 

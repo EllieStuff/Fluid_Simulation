@@ -212,39 +212,88 @@ float DistancePointPlane(const glm::vec3 &point, const glm::vec3 &planeNormal, c
 		sqrt(pow(planeNormal.x, 2) + pow(planeNormal.y, 2) + pow(planeNormal.z, 2));
 }
 
-Box::ColData Box::GetCollisionPointData(float dt, const float &realDt, const glm::vec3 &forces, const glm::vec3 &forcePoint, const int &idx, const glm::vec3 &normal, const float &planeD)
+Box::ColData Box::GetCollisionPointData(float dt, const glm::vec3 &forces, const glm::vec3 &forcePoint, const int &idx, const glm::vec3 &normal, const float &planeD)
 {
-	State tmpState = state;
-	// P(t+dt) = P(t) + dt * F(t)
-	tmpState.linearMomentum = tmpState.linearMomentum + (dt * forces);
+	//State tmpState = state;
+	//// P(t+dt) = P(t) + dt * F(t)
+	//tmpState.linearMomentum = tmpState.linearMomentum + (dt * forces);
 
-	// L(t+dt) = L(t) + dt * torque(t)
-	tmpState.angularMomentum = tmpState.angularMomentum + (dt * getTorque(forcePoint, forces));
+	//// L(t+dt) = L(t) + dt * torque(t)
+	//tmpState.angularMomentum = tmpState.angularMomentum + (dt * getTorque(forcePoint, forces));
 
-	// V(t+dt) = P(t+dt) / M
-	glm::vec3 linearV = tmpState.linearMomentum / mass;
-	// X(t+dt) = X(t) + dt * V(t+dt)
-	tmpState.centerOfMass = tmpState.centerOfMass + (dt * linearV);
+	//// V(t+dt) = P(t+dt) / M
+	//glm::vec3 linearV = tmpState.linearMomentum / mass;
+	//// X(t+dt) = X(t) + dt * V(t+dt)
+	//tmpState.centerOfMass = tmpState.centerOfMass + (dt * linearV);
 
-	/// rot 
-	/// ...
-	/// ...
+	///// rot 
+	///// ...
+	///// ...
 
 
-	glm::vec3 colPoint = GetVertexPos(idx, tmpState);
-	float distPointPlane = DistancePointPlane(colPoint, normal, planeD);
-	if (distPointPlane <= tolerance) {		//NAN???? ---> Per algun motiu el state.linearMomentum es NaN a la 3a iteracio
-		ColData colData = { tmpState.centerOfMass, colPoint, dt };
-		return colData;
-	}
+	//glm::vec3 colPoint = GetVertexPos(idx, tmpState);
+	//float distPointPlane = DistancePointPlane(colPoint, normal, planeD);
+	//if (distPointPlane <= tolerance) {		//NAN???? ---> Per algun motiu el state.linearMomentum es NaN a la 3a iteracio
+	//	ColData colData = { tmpState.centerOfMass, colPoint, dt };
+	//	return colData;
+	//}
 
-	if (HasCollided(vertices[idx], colPoint, normal, planeD)) {
-		return GetCollisionPointData(dt / 2, realDt, forces, forcePoint, idx, normal, planeD);
-	}
-	else {
-		return GetCollisionPointData(dt + ((realDt - dt) / 2), realDt, forces, forcePoint, idx, normal, planeD);
-	}
+	//if (HasCollided(vertices[idx], colPoint, normal, planeD)) {
+	//	return GetCollisionPointData(dt / 2, realDt, forces, forcePoint, idx, normal, planeD);
+	//}
+	//else {
+	//	return GetCollisionPointData(dt + ((realDt - dt) / 2), realDt, forces, forcePoint, idx, normal, planeD);
+	//}
 
+	
+	ColData colData;
+	float distPointPlane;
+	float dtMarginUp = dt, dtMarginDown = 0;
+	int maxIts = 100, currIts = 0;
+
+	do {
+		State tmpState = state;
+		// P(t+dt) = P(t) + dt * F(t)
+		tmpState.linearMomentum = tmpState.linearMomentum + (dt * forces);
+
+		// L(t+dt) = L(t) + dt * torque(t)
+		tmpState.angularMomentum = tmpState.angularMomentum + (dt * getTorque(forcePoint, forces));
+
+		// V(t+dt) = P(t+dt) / M
+		glm::vec3 linearV = tmpState.linearMomentum / mass;
+		// X(t+dt) = X(t) + dt * V(t+dt)
+		tmpState.centerOfMass = tmpState.centerOfMass + (dt * linearV);
+
+		/// rot 
+		/// ...
+		/// ...
+
+
+		glm::vec3 colPoint = GetVertexPos(idx, tmpState);
+		distPointPlane = DistancePointPlane(colPoint, normal, planeD);
+		if (distPointPlane <= tolerance /*|| currIts >= maxIts*/) {
+			colData = { tmpState.centerOfMass, colPoint, dt };
+		}
+		else {
+			if (HasCollided(vertices[idx], colPoint, normal, planeD)) {
+				dtMarginUp = dt;
+				dt = dtMarginDown + ((dtMarginUp - dtMarginDown) / 2);
+			}
+			else {
+				colData = { tmpState.centerOfMass, colPoint, dt };
+				dtMarginDown = dt;
+				dt = dtMarginDown + ((dtMarginUp - dtMarginDown) / 2);
+			}
+
+			currIts++;
+		}
+
+
+	} while (distPointPlane > tolerance && currIts <= maxIts);
+
+	//printf("Its %i\n", currIts);
+
+	return colData;
 }
 
 bool Box::IdAvailable(int id)
@@ -331,17 +380,19 @@ void Box::update(float dt, glm::vec3 forces, glm::vec3 forcePoint)
 		std::deque<glm::vec3> colNormals;
 		std::deque<float> colPlanesD;
 		if (CheckSecondWallCollisions(tmpState, colIdxs, colNormals, colPlanesD)) {
-			std::deque<ColData> colData;
+			//std::deque<ColData> colData;
 			for (int i = 0; i < colIdxs.size(); i++) {
 				if (IdAvailable(colIdxs[i])) {
-					colData.push_back(GetCollisionPointData(dt, dt, forces, forcePoint, colIdxs[i], colNormals[i], colPlanesD[i]));
+					//colData.push_back(GetCollisionPointData(dt, dt, forces, forcePoint, colIdxs[i], colNormals[i], colPlanesD[i]));
+					ColData colData = GetCollisionPointData(dt, forces, forcePoint, colIdxs[i], colNormals[i], colPlanesD[i]);
 
 					//wtf peta en el printf???!!!
 					//printf("Idx %i: (%f, %f, %f)\n", colIdxs[i], colPoints[i].x, colPoints[i].y, colPoints[i].z);
 
 					checkedIds.push_back(FlaggedId(colIdxs[i]));
 
-					glm::vec3 r = colData[i].colCenterOfMass - state.centerOfMass;
+					//glm::vec3 r = colData[i].colCenterOfMass - state.centerOfMass;
+					glm::vec3 r = colData.colCenterOfMass - state.centerOfMass;
 
 					//// P(t0) = V(t0) + (W(t0) X (P(t0) - X(t0)))
 					glm::vec3 posDerivate = linearV + glm::cross(angularW, r);

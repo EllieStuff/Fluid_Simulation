@@ -96,7 +96,7 @@ private:
 	//bool *checked;
 	std::deque<FlaggedId> checkedIds;
 	
-	ColData GetCollisionPointData(float dt, const float &realDt, const glm::vec3& forces, const glm::vec3& forcePoint, const int& idx, const glm::vec3& normal, const float& planeD);
+	ColData GetCollisionPointData(float dt, const glm::vec3& forces, const glm::vec3& forcePoint, const int& idx, const glm::vec3& normal, const float& planeD);
 	glm::vec3 GetVertexPos(int idx, const State& _state);
 	glm::vec3 getTorque(glm::vec3 forcePoint, glm::vec3 forceVector);
 	bool CheckFirstWallCollisions(const State& tmpState);

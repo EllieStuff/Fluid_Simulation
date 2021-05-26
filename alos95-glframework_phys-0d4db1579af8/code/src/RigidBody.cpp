@@ -124,7 +124,7 @@ bool HasCollided(glm::vec3 prevParticlePos, glm::vec3 particlePos, glm::vec3 nor
 
 glm::vec3 Box::GetVertexPos(int idx, const State &_state) {
 	
-	return _state.centerOfMass + initVertices[idx]; // *getRotationMatrix();
+	return _state.centerOfMass + initVertices[idx] * getRotationMatrix();
 }
 
 bool Box::CalculateWallCollisions(int id, glm::vec3 wallVertex, std::deque<int>& idxs, std::deque<glm::vec3>& normals, std::deque<float>& planesD, glm::vec3 nextVertexPos)
@@ -187,38 +187,6 @@ float DistancePointPlane(const glm::vec3 &point, const glm::vec3 &planeNormal, c
 
 Box::ColData Box::GetCollisionPointData(float dt, const glm::vec3 &forces, const glm::vec3 &forcePoint, const int &idx, const glm::vec3 &normal, const float &planeD)
 {
-	//State tmpState = state;
-	//// P(t+dt) = P(t) + dt * F(t)
-	//tmpState.linearMomentum = tmpState.linearMomentum + (dt * forces);
-
-	//// L(t+dt) = L(t) + dt * torque(t)
-	//tmpState.angularMomentum = tmpState.angularMomentum + (dt * getTorque(forcePoint, forces));
-
-	//// V(t+dt) = P(t+dt) / M
-	//glm::vec3 linearV = tmpState.linearMomentum / mass;
-	//// X(t+dt) = X(t) + dt * V(t+dt)
-	//tmpState.centerOfMass = tmpState.centerOfMass + (dt * linearV);
-
-	///// rot 
-	///// ...
-	///// ...
-
-
-	//glm::vec3 colPoint = GetVertexPos(idx, tmpState);
-	//float distPointPlane = DistancePointPlane(colPoint, normal, planeD);
-	//if (distPointPlane <= tolerance) {		//NAN???? ---> Per algun motiu el state.linearMomentum es NaN a la 3a iteracio
-	//	ColData colData = { tmpState.centerOfMass, colPoint, dt };
-	//	return colData;
-	//}
-
-	//if (HasCollided(vertices[idx], colPoint, normal, planeD)) {
-	//	return GetCollisionPointData(dt / 2, realDt, forces, forcePoint, idx, normal, planeD);
-	//}
-	//else {
-	//	return GetCollisionPointData(dt + ((realDt - dt) / 2), realDt, forces, forcePoint, idx, normal, planeD);
-	//}
-
-	
 	ColData colData;
 	float distPointPlane;
 	float dtMarginUp = dt, dtMarginDown = 0;
@@ -237,9 +205,22 @@ Box::ColData Box::GetCollisionPointData(float dt, const glm::vec3 &forces, const
 		// X(t+dt) = X(t) + dt * V(t+dt)
 		tmpState.centerOfMass = tmpState.centerOfMass + (dt * linearV);
 
-		/// rot 
-		/// ...
-		/// ...
+
+		// I(t)^-1 = R(t) * I(body)^-1 * R(t)^T
+		glm::mat3 inverseInertia = glm::inverse(getInertiaTensor());
+		// W(t) = I(t)^-1 * L(t+dt)
+		glm::vec3 angularW = inverseInertia * tmpState.angularMomentum;
+		// R(t+dt) = R(t) + dt * ( W(t) * R(t) ) 
+		glm::vec3 oldAxis = glm::axis(tmpState.rotation);
+		glm::vec3 newAxis = glm::cross(angularW, glm::axis(tmpState.rotation));
+
+		float newAngle = 0;
+		float newAngleLength = glm::length(oldAxis) * glm::length(newAxis);
+		if (newAngleLength != 0)
+			newAngle = acos(glm::dot(oldAxis, newAxis) / newAngleLength);
+		glm::quat newRot = glm::normalize(glm::angleAxis(newAngle, newAxis));
+
+		tmpState.rotation = tmpState.rotation * newRot;
 
 
 		glm::vec3 colPoint = GetVertexPos(idx, tmpState);
@@ -328,11 +309,11 @@ void Box::update(float dt, glm::vec3 forces, glm::vec3 forcePoint)
 	glm::vec3 oldAxis = glm::axis(tmpState.rotation);
 	glm::vec3 newAxis = glm::cross(angularW, glm::axis(tmpState.rotation));
 
-	float newAngle = 0; 
+	float newAngle = 0;
 	float newAngleLength = glm::length(oldAxis) * glm::length(newAxis);
 	if (newAngleLength != 0)
 		newAngle = acos(glm::dot(oldAxis, newAxis) / newAngleLength);
-	glm::quat newRot = glm::angleAxis(newAngle, newAxis);
+	glm::quat newRot = glm::normalize(glm::angleAxis(newAngle, newAxis));
 
 	tmpState.rotation = tmpState.rotation * newRot;
 
@@ -375,7 +356,7 @@ void Box::update(float dt, glm::vec3 forces, glm::vec3 forcePoint)
 					relV = -(relV * (1 + elasticityK));
 
 					float impulseMagnitude = relV / (1 / mass) + 0 + glm::dot(colNormals[i], glm::cross(inverseInertia * (glm::cross(rA, colNormals[i])), rA)) + glm::dot(colNormals[i], glm::cross(glm::vec3(0, 0, 0) * (glm::cross(rB, colNormals[i])), rB));
-					//										Wall mass																							Compute of wall impulse
+					//								Wall mass																										Compute of wall impulse
 
 					glm::vec3 impulse = impulseMagnitude * colNormals[i];
 
@@ -383,10 +364,10 @@ void Box::update(float dt, glm::vec3 forces, glm::vec3 forcePoint)
 					tmpState.linearMomentum += (impulse / 4.f);
 
 					//Torque = (punt de contacte - CoM(t)) X impulse
-					//glm::vec3 torque = glm::cross(r, impulse);
+					glm::vec3 torque = glm::cross(rA, impulse);
 
 					//L(t0)' = L(t0) + Torque
-					//state.angularMomentum += torque;
+					state.angularMomentum += torque;
 				}
 
 			}
@@ -402,12 +383,10 @@ void Box::update(float dt, glm::vec3 forces, glm::vec3 forcePoint)
 	}
 
 
-	// ToDo: Crec que peta en tornar a entrar aqui
 	CleanCheckedIds();
 
-
-	//UpdateVertices();
 	setState(tmpState);
+	UpdateVertices();
 }
 
 void Box::draw() {

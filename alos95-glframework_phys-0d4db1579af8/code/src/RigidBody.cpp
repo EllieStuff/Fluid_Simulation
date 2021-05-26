@@ -127,6 +127,21 @@ glm::vec3 Box::GetVertexPos(int idx, const State &_state) {
 	return _state.centerOfMass + initVertices[idx]; // *getRotationMatrix();
 }
 
+bool Box::CalculateWallCollisions(int id, glm::vec3 wallVertex, std::deque<int>& idxs, std::deque<glm::vec3>& normals, std::deque<float>& planesD, glm::vec3 nextVertexPos)
+{
+	glm::vec3 normal = glm::normalize(CalculatePlaneNormal(boxVertex[(int)wallVertex.r], boxVertex[(int)wallVertex.g], boxVertex[(int)wallVertex.b]));
+	float planeD = -(normal.x * boxVertex[(int)wallVertex.r].x + normal.y * boxVertex[(int)wallVertex.r].y + normal.z * boxVertex[(int)wallVertex.r].z);
+	if (HasCollided(vertices[id], nextVertexPos, normal, planeD)) {
+		idxs.push_back(id);
+		normals.push_back(normal);
+		planesD.push_back(planeD);
+
+		return true;
+	}
+
+	return false;
+}
+
 bool Box::CheckSecondWallCollisions(const State & _state, std::deque<int> &idxs, std::deque<glm::vec3> &normals, std::deque<float> &planesD)
 {
 	bool colFound = false;
@@ -135,70 +150,28 @@ bool Box::CheckSecondWallCollisions(const State & _state, std::deque<int> &idxs,
 		glm::vec3 nextVertexPos = GetVertexPos(i, _state);
 
 		//Floor
-		glm::vec3 normal = glm::normalize(CalculatePlaneNormal(boxVertex[3], boxVertex[2], boxVertex[0]));
-		float planeD = -(normal.x * boxVertex[3].x + normal.y * boxVertex[3].y + normal.z * boxVertex[3].z);
-		if (HasCollided(vertices[i], nextVertexPos, normal, planeD)) {
-			idxs.push_back(i);
-			normals.push_back(normal);
-			planesD.push_back(planeD);
-
-			colFound = true;
-		}
+		if (CalculateWallCollisions(i, glm::vec3(3, 2, 0), idxs, normals, planesD, nextVertexPos))
+			if (!colFound)	colFound = true;
 
 		//Ceiling
-		normal = glm::normalize(CalculatePlaneNormal(boxVertex[6], boxVertex[7], boxVertex[5]));
-		planeD = -(normal.x * boxVertex[6].x + normal.y * boxVertex[6].y + normal.z * boxVertex[6].z);
-		if (HasCollided(vertices[i], nextVertexPos, normal, planeD)) {
-			idxs.push_back(i);
-			normals.push_back(normal);
-			planesD.push_back(planeD);
-
-			colFound = true;
-		}
+		if (CalculateWallCollisions(i, glm::vec3(6, 7, 5), idxs, normals, planesD, nextVertexPos))
+			if (!colFound)	colFound = true;
 
 		//Left wall
-		normal = glm::normalize(CalculatePlaneNormal(boxVertex[3], boxVertex[0], boxVertex[7]));
-		planeD = (normal.x * boxVertex[3].x + normal.y * boxVertex[3].y + normal.z * boxVertex[3].z);
-		if (HasCollided(vertices[i], nextVertexPos, normal, planeD)) {
-			idxs.push_back(i);
-			normals.push_back(normal);
-			planesD.push_back(planeD);
-
-			colFound = true;
-		}
+		if (CalculateWallCollisions(i, glm::vec3(3, 0, 7), idxs, normals, planesD, nextVertexPos))
+			if (!colFound)	colFound = true;
 
 		//Right wall
-		normal = glm::normalize(CalculatePlaneNormal(boxVertex[1], boxVertex[2], boxVertex[5]));
-		planeD = (normal.x * boxVertex[1].x + normal.y * boxVertex[1].y + normal.z * boxVertex[1].z);
-		if (HasCollided(vertices[i], nextVertexPos, normal, planeD)) {
-			idxs.push_back(i);
-			normals.push_back(normal);
-			planesD.push_back(planeD);
-
-			colFound = true;
-		}
+		if (CalculateWallCollisions(i, glm::vec3(1, 2, 5), idxs, normals, planesD, nextVertexPos))
+			if (!colFound)	colFound = true;
 
 		//Rear wall
-		normal = glm::normalize(CalculatePlaneNormal(boxVertex[0], boxVertex[1], boxVertex[4]));
-		planeD = (normal.x * boxVertex[0].x + normal.y * boxVertex[0].y + normal.z * boxVertex[0].z);
-		if (HasCollided(vertices[i], nextVertexPos, normal, planeD)) {
-			idxs.push_back(i);
-			normals.push_back(normal);
-			planesD.push_back(planeD);
-
-			colFound = true;
-		}
+		if (CalculateWallCollisions(i, glm::vec3(0, 1, 4), idxs, normals, planesD, nextVertexPos))
+			if (!colFound)	colFound = true;
 
 		//Front wall
-		normal = glm::normalize(CalculatePlaneNormal(boxVertex[3], boxVertex[7], boxVertex[2]));
-		planeD = (normal.x * boxVertex[3].x + normal.y * boxVertex[3].y + normal.z * boxVertex[3].z);
-		if (HasCollided(vertices[i], nextVertexPos, normal, planeD)) {
-			idxs.push_back(i);
-			normals.push_back(normal);
-			planesD.push_back(planeD);
-
-			colFound = true;
-		}
+		if (CalculateWallCollisions(i, glm::vec3(3, 7, 2), idxs, normals, planesD, nextVertexPos))
+			if (!colFound)	colFound = true;
 
 	}
 
@@ -338,7 +311,7 @@ void Box::update(float dt, glm::vec3 forces, glm::vec3 forcePoint)
 
 					//wtf peta en el printf???!!!
 					//printf("Idx %i: (%f, %f, %f)\n", colIdxs[i], colPoints[i].x, colPoints[i].y, colPoints[i].z);
-
+					
 					checkedIds.push_back(FlaggedId(colIdxs[i]));
 
 					glm::vec3 r = colData[i].colCenterOfMass - state.centerOfMass;
@@ -346,7 +319,7 @@ void Box::update(float dt, glm::vec3 forces, glm::vec3 forcePoint)
 					//// P(t0) = V(t0) + (W(t0) X (P(t0) - X(t0)))
 					glm::vec3 posDerivate = linearV + glm::cross(angularW, r);
 					float relV = glm::dot(colNormals[i], posDerivate - glm::vec3(0, 0, 0));	//Si la paret es mogues, en contres de 0 seria posDerivateB
-					float elasticityK = 1.f;
+					float elasticityK = 0.8f;
 					relV = -(relV * (1 + elasticityK));
 
 					float impulseMagnitude = relV / (1 / mass) + 0 + glm::dot(colNormals[i], glm::cross(inverseInertia * (glm::cross(r, colNormals[i])), r)) + 0;

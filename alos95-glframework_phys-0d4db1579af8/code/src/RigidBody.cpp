@@ -63,9 +63,10 @@ glm::mat3 RigidBody::getRotationMatrix() {
 
 
 Box::Box(glm::vec3 _initPos, glm::quat _initRot, float _mass,
-		glm::vec3 _linearVelocity, glm::vec3 _angularVelocity,
-		float _width, float _height, float _depth)
-	: RigidBody(_mass), width(_width), height(_height), depth(_depth) 
+	glm::vec3 _linearVelocity, glm::vec3 _angularVelocity,
+	float _width, float _height, float _depth,
+	bool _rotationActive)
+	: RigidBody(_mass), width(_width), height(_height), depth(_depth), rotationActive(_rotationActive)
 {
 	initVertices = new glm::vec3[verticesSize]
 	{
@@ -209,16 +210,16 @@ Box::ColData Box::GetCollisionPointData(float dt, const glm::vec3 &forces, const
 		// X(t+dt) = X(t) + dt * V(t+dt)
 		tmpState.centerOfMass = tmpState.centerOfMass + (dt * linearV);
 
-
-		// I(t)^-1 = R(t) * I(body)^-1 * R(t)^T
-		glm::mat3 inverseInertia = glm::inverse(getInertiaTensor());
-		// W(t) = I(t)^-1 * L(t+dt)
-		glm::vec3 angularW = inverseInertia * tmpState.angularMomentum;
-		// R'(t) = W(t) * R(t)
-		glm::quat rotDerivate = angularW * glm::normalize(tmpState.rotation);
-		// R(t+dt) = R(t) + dt * R'(t)
-		tmpState.rotation = glm::normalize(tmpState.rotation + dt * rotDerivate);
-
+		if (rotationActive) {
+			// I(t)^-1 = R(t) * I(body)^-1 * R(t)^T
+			glm::mat3 inverseInertia = glm::inverse(getInertiaTensor());
+			// W(t) = I(t)^-1 * L(t+dt)
+			glm::vec3 angularW = inverseInertia * tmpState.angularMomentum;
+			// R'(t) = W(t) * R(t)
+			glm::quat rotDerivate = angularW * glm::normalize(tmpState.rotation);
+			// R(t+dt) = R(t) + dt * R'(t)
+			tmpState.rotation = glm::normalize(tmpState.rotation + dt * rotDerivate);
+		}
 
 		glm::vec3 colPoint = GetVertexPos(idx, tmpState);
 		distPointPlane = DistancePointPlane(colPoint, normal, planeD);
@@ -295,15 +296,26 @@ void Box::update(float dt, glm::vec3 forces, glm::vec3 forcePoint)
 	tmpState.centerOfMass = tmpState.centerOfMass + (dt * linearV);
 
 
-	// I(t)^-1 = R(t) * I(body)^-1 * R(t)^T
-	glm::mat3 inverseInertia = glm::inverse(getInertiaTensor());
-	// W(t) = I(t)^-1 * L(t+dt)
-	glm::vec3 angularW = inverseInertia * tmpState.angularMomentum;
-	// R'(t) = W(t) * R(t)
-	glm::quat rotDerivate = angularW * glm::normalize(tmpState.rotation);
-	// R(t+dt) = R(t) + dt * R'(t)
-	tmpState.rotation = glm::normalize(tmpState.rotation + dt * rotDerivate);
-
+	glm::mat3 inverseInertia;
+	glm::vec3 angularW;
+	if (rotationActive) {
+		// I(t)^-1 = R(t) * I(body)^-1 * R(t)^T
+		inverseInertia = glm::inverse(getInertiaTensor());
+		// W(t) = I(t)^-1 * L(t+dt)
+		angularW = inverseInertia * tmpState.angularMomentum;
+		// R'(t) = W(t) * R(t)
+		glm::quat rotDerivate = angularW * glm::normalize(tmpState.rotation);
+		// R(t+dt) = R(t) + dt * R'(t)
+		tmpState.rotation = glm::normalize(tmpState.rotation + dt * rotDerivate);
+	}
+	else {
+		inverseInertia = glm::mat3(
+			1, 0, 0,
+			0, 1, 0,
+			0, 0, 1
+		);
+		angularW = glm::vec3(0, 0, 0);
+	}
 
 	if (CheckFirstWallCollisions(tmpState)) {
 		//printf("true\n");
@@ -345,11 +357,13 @@ void Box::update(float dt, glm::vec3 forces, glm::vec3 forcePoint)
 					glm::vec3 minMaxVec = glm::vec3(minMaxVal, minMaxVal, minMaxVal);
 					tmpState.linearMomentum = glm::clamp(tmpState.linearMomentum, -minMaxVec, minMaxVec);
 
-					//Torque = (punt de contacte - CoM(t)) X impulse
-					glm::vec3 torque = glm::cross(rA, impulse);
+					if (rotationActive) {
+						//Torque = (punt de contacte - CoM(t)) X impulse
+						glm::vec3 torque = glm::cross(rA, impulse);
 
-					//L(t0)' = L(t0) + Torque
-					state.angularMomentum += torque;
+						//L(t0)' = L(t0) + Torque
+						state.angularMomentum += torque;
+					}
 				}
 				else {
 					//checked[colIdxs[i]] = false;

@@ -73,11 +73,15 @@ private:
 
 class Box : public RigidBody {
 public:
+	bool rotationActive;
+
+
 	//Box(float width, float height, float depth, float mass);
 	Box(
 		glm::vec3 _initPos, glm::quat _initRot, float _mass,
 		glm::vec3 _linearVelocity, glm::vec3 _angularVelocity,
-		float _width, float _height, float _depth
+		float _width, float _height, float _depth,
+		bool _rotationActive
 	);
 
 	virtual glm::mat3 getInertiaTensor() override;

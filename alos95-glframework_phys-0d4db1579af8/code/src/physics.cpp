@@ -23,6 +23,8 @@ glm::vec3 gravity = glm::vec3(0.f, -9.81f, 0.f);
 glm::vec3 spherePos;
 float sphereRadius;
 
+bool boxRotationActivated = true;
+
 Box* box;
 glm::vec3 boxPos = glm::vec3(0.f, 5.f, 0.f);
 glm::vec3 currForcePoint;
@@ -39,7 +41,11 @@ void ResetBox() {
 	boxPos = glm::vec3((rand() % 6) - 3, (rand() % 6) + 3, (rand() % 6) - 3);
 	currForcePoint = glm::vec3((rand() % 2) - 0.5f, (rand() % 2) - 0.5f, (rand() % 2) - 0.5f);
 	initForce = glm::vec3((rand() % 4), (rand() % 7), (rand() % 4));
-	glm::quat boxRot = glm::quat(1.f, (rand() % 10) / 10.f, (rand() % 10) / 10.f, (rand() % 10) / 10.f);
+
+	if(!boxRotationActivated)
+		boxRot = glm::quat(1.f, 0.f, 0.f, 0.f);
+	else
+		boxRot = glm::quat(1.f, (rand() % 10) / 10.f, (rand() % 10) / 10.f, (rand() % 10) / 10.f);
 
 	box = new Box(
 		boxPos,
@@ -47,7 +53,8 @@ void ResetBox() {
 		boxMass,
 		boxLVel,
 		boxWVel,
-		boxWidth, boxHeight, boxDepth
+		boxWidth, boxHeight, boxDepth,
+		boxRotationActivated
 	);
 
 	boxReset = true;
@@ -65,6 +72,12 @@ void GUI() {
 			tempo = 0;
 			ResetBox();
 		}
+		/*if (ImGui::Button("Enable/Disable Rotation")) {
+			boxRotationActivated = !boxRotationActivated;
+			ResetBox();
+		}*/
+		ImGui::Checkbox("Enable/Disable Rotation", &boxRotationActivated);
+
 		/*if (ImGui::Button("Reset")) {
 			tempo = 0;
 			spherePos = glm::vec3((rand() % 10) - 5, rand() % 10, (rand() % 10) - 5);
@@ -138,6 +151,8 @@ void PhysicsUpdate(float dt) {
 		Sphere::drawSphere();
 	}*/
 	if (renderCube) {
+		box->rotationActive = boxRotationActivated;
+
 		glm::vec3 forcePoint = box->getState().centerOfMass + currForcePoint;
 		if (boxReset) {
 			boxReset = false;

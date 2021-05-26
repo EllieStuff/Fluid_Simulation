@@ -33,9 +33,10 @@ glm::vec3 boxWVel = glm::vec3(1.f, 1.f, 1.f);
 float boxWidth = 1.f, boxHeight = 1.f, boxDepth = 1.f;
 
 void ResetBox() {
-	boxPos = glm::vec3((rand() % 10) - 5, (rand() % 9) + 1, (rand() % 10) - 5);
+	boxPos = glm::vec3((rand() % 6) - 3, (rand() % 6) + 3, (rand() % 6) - 3);
 	currForcePoint = glm::vec3((rand() % 2) - 1, (rand() % 2) - 1, (rand() % 2) - 1);
 	currForce = glm::vec3((rand() % 4), (rand() % 7), (rand() % 4));
+	glm::quat boxRot = glm::quat(1.f, (rand() % 10) / 10.f, (rand() % 10) / 10.f, (rand() % 10) / 10.f);
 
 	/*boxPos = glm::vec3(0.f, 5.f, 0.f);
 	currForcePoint = glm::vec3(boxPos);

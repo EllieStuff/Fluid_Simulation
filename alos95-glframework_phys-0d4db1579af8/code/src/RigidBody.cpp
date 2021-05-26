@@ -336,16 +336,16 @@ void Box::update(float dt, glm::vec3 forces, glm::vec3 forcePoint)
 
 					//P(t0)' = P(t0) + J"impulse"
 					tmpState.linearMomentum += (impulse / 4.f);
-
+					//Limit linearMomentum
 					float minMaxVal = 15.f;
 					glm::vec3 minMaxVec = glm::vec3(minMaxVal, minMaxVal, minMaxVal);
 					tmpState.linearMomentum = glm::clamp(tmpState.linearMomentum, -minMaxVec, minMaxVec);
 
 					//Torque = (punt de contacte - CoM(t)) X impulse
-					//glm::vec3 torque = glm::cross(rA, impulse);
+					glm::vec3 torque = glm::cross(rA, impulse);
 
 					//L(t0)' = L(t0) + Torque
-					//state.angularMomentum += torque;
+					state.angularMomentum += torque;
 				}
 
 			}

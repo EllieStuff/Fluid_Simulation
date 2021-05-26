@@ -79,8 +79,10 @@ Box::Box(glm::vec3 _initPos, glm::quat _initRot, float _mass,
 		glm::vec3(_width, _height, _depth) / 2.f
 	};
 	vertices = new glm::vec3[verticesSize];
+	checked = new bool[verticesSize];
 	for (int i = 0; i < verticesSize; i++) {
 		vertices[i] = _initPos + initVertices[i];
+		checked[i] = true;
 	}
 
 
@@ -135,6 +137,8 @@ bool Box::CalculateWallCollisions(int id, glm::vec3 wallVertex, std::deque<int>&
 		idxs.push_back(id);
 		normals.push_back(normal);
 		planesD.push_back(planeD);
+
+		checked[id] = !checked[id];
 
 		return true;
 	}
@@ -243,31 +247,31 @@ Box::ColData Box::GetCollisionPointData(float dt, const glm::vec3 &forces, const
 	return colData;
 }
 
-bool Box::IdAvailable(int id)
-{
-	for (auto it = checkedIds.begin(); it != checkedIds.end(); it++) {
-		if (it->id == id) return false;
-	}
-
-	return true;
-}
-
-void Box::CleanCheckedIds()
-{
-	for (int i = 0; i < checkedIds.size(); i++) {
-		if (checkedIds[i].flag == false) {
-			checkedIds[i].flag = true;
-		}
-		else {
-			auto it = checkedIds.begin();
-			while (it != checkedIds.end() && it->id != checkedIds[i].id)
-				it++;
-			checkedIds.erase(it);
-		}
-
-	}
-
-}
+//bool Box::IdAvailable(int id)
+//{
+//	for (auto it = checkedIds.begin(); it != checkedIds.end(); it++) {
+//		if (it->id == id) return false;
+//	}
+//
+//	return true;
+//}
+//
+//void Box::CleanCheckedIds()
+//{
+//	for (int i = 0; i < checkedIds.size(); i++) {
+//		if (checkedIds[i].flag == false) {
+//			checkedIds[i].flag = true;
+//		}
+//		else {
+//			auto it = checkedIds.begin();
+//			while (it != checkedIds.end() && it->id != checkedIds[i].id)
+//				it++;
+//			checkedIds.erase(it);
+//		}
+//
+//	}
+//
+//}
 
 void Box::UpdateVertices() {
 	for (int i = 0; i < verticesSize; i++) {
@@ -279,7 +283,6 @@ void Box::update(float dt, glm::vec3 forces, glm::vec3 forcePoint)
 {
 	State tmpState = state;
 
-	forces += glm::vec3(0, -9.81f * mass, 0);
 	// P(t+dt) = P(t) + dt * F(t)
 	tmpState.linearMomentum = tmpState.linearMomentum + (dt * forces);
 
@@ -310,12 +313,13 @@ void Box::update(float dt, glm::vec3 forces, glm::vec3 forcePoint)
 		if (CheckSecondWallCollisions(tmpState, colIdxs, colNormals, colPlanesD)) {
 			//std::deque<ColData> colData;
 			for (int i = 0; i < colIdxs.size(); i++) {
-				if (IdAvailable(colIdxs[i])) {
+				if (!checked[colIdxs[i]] /*IdAvailable(colIdxs[i])*/) {
 					//colData.push_back(GetCollisionPointData(dt, dt, forces, forcePoint, colIdxs[i], colNormals[i], colPlanesD[i]));
 					ColData colData = GetCollisionPointData(dt, forces, forcePoint, colIdxs[i], colNormals[i], colPlanesD[i]);
 					
-					checkedIds.push_back(FlaggedId(colIdxs[i]));
-					
+					//checkedIds.push_back(FlaggedId(colIdxs[i]));
+					//checked[colIdxs[i]] = true;
+
 					printf("Idx %i: (%f, %f, %f)\n", colIdxs[i], colData.colPoint.x, colData.colPoint.y, colData.colPoint.z);
 
 
@@ -335,7 +339,7 @@ void Box::update(float dt, glm::vec3 forces, glm::vec3 forcePoint)
 					glm::vec3 impulse = impulseMagnitude * colNormals[i];
 
 					//P(t0)' = P(t0) + J"impulse"
-					tmpState.linearMomentum += (impulse / 4.f);
+					tmpState.linearMomentum += (impulse);
 					//Limit linearMomentum
 					float minMaxVal = 15.f;
 					glm::vec3 minMaxVec = glm::vec3(minMaxVal, minMaxVal, minMaxVal);
@@ -346,6 +350,9 @@ void Box::update(float dt, glm::vec3 forces, glm::vec3 forcePoint)
 
 					//L(t0)' = L(t0) + Torque
 					state.angularMomentum += torque;
+				}
+				else {
+					//checked[colIdxs[i]] = false;
 				}
 
 			}
@@ -361,7 +368,7 @@ void Box::update(float dt, glm::vec3 forces, glm::vec3 forcePoint)
 	}
 
 
-	CleanCheckedIds();
+	//CleanCheckedIds();
 
 	setState(tmpState);
 	UpdateVertices();

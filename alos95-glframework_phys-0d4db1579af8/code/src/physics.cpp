@@ -18,6 +18,7 @@ extern bool renderCapsule;
 extern bool renderCloth;
 extern bool renderCube;
 float tempo = 0;
+glm::vec3 gravity = glm::vec3(0.f, -9.81f, 0.f);
 
 glm::vec3 spherePos;
 float sphereRadius;
@@ -25,23 +26,20 @@ float sphereRadius;
 Box* box;
 glm::vec3 boxPos = glm::vec3(0.f, 5.f, 0.f);
 glm::vec3 currForcePoint;
-glm::vec3 currForce;
+glm::vec3 currForce = glm::vec3(0.f, 0.f, 0.f);
+glm::vec3 initForce;
 glm::quat boxRot = glm::quat(1.f, 0.f, 0.f, 0.f);
 float boxMass = 1.f;
 glm::vec3 boxLVel = glm::vec3(0.f, 0.f, 0.f);
 glm::vec3 boxWVel = glm::vec3(1.f, 1.f, 1.f);
 float boxWidth = 1.f, boxHeight = 1.f, boxDepth = 1.f;
+bool boxReset = false;
 
 void ResetBox() {
 	boxPos = glm::vec3((rand() % 6) - 3, (rand() % 6) + 3, (rand() % 6) - 3);
-	currForcePoint = glm::vec3((rand() % 2) - 1, (rand() % 2) - 1, (rand() % 2) - 1);
-	currForce = glm::vec3((rand() % 4), (rand() % 7), (rand() % 4));
+	currForcePoint = glm::vec3((rand() % 2) - 0.5f, (rand() % 2) - 0.5f, (rand() % 2) - 0.5f);
+	initForce = glm::vec3((rand() % 4), (rand() % 7), (rand() % 4));
 	glm::quat boxRot = glm::quat(1.f, (rand() % 10) / 10.f, (rand() % 10) / 10.f, (rand() % 10) / 10.f);
-
-	/*boxPos = glm::vec3(0.f, 5.f, 0.f);
-	currForcePoint = glm::vec3(boxPos);
-	currForce = glm::vec3(2.f, 60.f, 3.f);*/
-
 
 	box = new Box(
 		boxPos,
@@ -51,6 +49,8 @@ void ResetBox() {
 		boxWVel,
 		boxWidth, boxHeight, boxDepth
 	);
+
+	boxReset = true;
 }
 
 bool show_test_window = false;
@@ -139,6 +139,12 @@ void PhysicsUpdate(float dt) {
 	}*/
 	if (renderCube) {
 		glm::vec3 forcePoint = box->getState().centerOfMass + currForcePoint;
+		if (boxReset) {
+			boxReset = false;
+			box->update(dt, currForce, forcePoint);
+		}
+
+		currForce = (gravity + initForce) * box->getMass();
 		box->update(dt, currForce, forcePoint);
 		box->draw();
 	}

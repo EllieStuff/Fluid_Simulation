@@ -27,13 +27,13 @@ public:
 		float colDt;
 	};
 
-	struct FlaggedId {
+	/*struct FlaggedId {
 		int id;
 		bool flag = false;
 
 		FlaggedId() {};
 		FlaggedId(int _id) : id(_id) {};
-	};
+	};*/
 
 	glm::vec3 boxVertex[8] = {
 		glm::vec3(-5.f,  0.f, -5.f),	//Left-Lower-Back (0)
@@ -93,8 +93,8 @@ private:
 	int verticesSize = 8;
 	glm::vec3 *vertices, *initVertices;
 	float tolerance = 0.01f;
-	//bool *checked;
-	std::deque<FlaggedId> checkedIds;
+	//std::deque<FlaggedId> checkedIds;
+	bool* checked;
 	
 	ColData GetCollisionPointData(float dt, const glm::vec3& forces, const glm::vec3& forcePoint, const int& idx, const glm::vec3& normal, const float& planeD);
 	glm::vec3 GetVertexPos(int idx, const State& _state);

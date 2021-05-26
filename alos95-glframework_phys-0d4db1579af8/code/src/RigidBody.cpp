@@ -365,16 +365,17 @@ void Box::update(float dt, glm::vec3 forces, glm::vec3 forcePoint)
 					checkedIds.push_back(FlaggedId(colIdxs[i]));
 
 					//glm::vec3 r = colData[i].colCenterOfMass - state.centerOfMass;
-					glm::vec3 r = colData.colCenterOfMass - state.centerOfMass;
+					glm::vec3 rA = colData.colPoint - colData.colCenterOfMass;
+					glm::vec3 rB = colData.colPoint - glm::vec3(0, 5, 0);
 
 					//// P(t0) = V(t0) + (W(t0) X (P(t0) - X(t0)))
-					glm::vec3 posDerivate = linearV + glm::cross(angularW, r);
+					glm::vec3 posDerivate = linearV + glm::cross(angularW, rA);
 					float relV = glm::dot(colNormals[i], posDerivate - glm::vec3(0, 0, 0));	//Si la paret es mogues, en contres de 0 seria posDerivateB
-					float elasticityK = 0.8f;
+					float elasticityK = 0.4f;
 					relV = -(relV * (1 + elasticityK));
 
-					float impulseMagnitude = relV / (1 / mass) + 0 + glm::dot(colNormals[i], glm::cross(inverseInertia * (glm::cross(r, colNormals[i])), r)) + 0;
-					//								Wall mass																						Compute of wall impulse
+					float impulseMagnitude = relV / (1 / mass) + 0 + glm::dot(colNormals[i], glm::cross(inverseInertia * (glm::cross(rA, colNormals[i])), rA)) + glm::dot(colNormals[i], glm::cross(glm::vec3(0, 0, 0) * (glm::cross(rB, colNormals[i])), rB));
+					//										Wall mass																							Compute of wall impulse
 
 					glm::vec3 impulse = impulseMagnitude * colNormals[i];
 

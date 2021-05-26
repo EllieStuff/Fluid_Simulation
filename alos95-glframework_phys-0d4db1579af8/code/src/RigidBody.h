@@ -101,6 +101,7 @@ private:
 	glm::vec3 getTorque(glm::vec3 forcePoint, glm::vec3 forceVector);
 	bool CheckFirstWallCollisions(const State& tmpState);
 	bool CheckSecondWallCollisions(const State& _state, std::deque<int>& idxs, std::deque<glm::vec3>& normals, std::deque<float>& planesD);
+	bool CalculateWallCollisions(int i, glm::vec3 wallVertex, std::deque<int>& idxs, std::deque<glm::vec3>& normals, std::deque<float>& planesD, glm::vec3 nextVertexPos);
 	void UpdateVertices();
 	bool IdAvailable(int id);
 	void CleanCheckedIds();

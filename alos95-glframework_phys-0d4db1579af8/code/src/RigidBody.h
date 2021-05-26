@@ -106,6 +106,7 @@ private:
 	bool CheckFirstWallCollisions(const State& tmpState);
 	bool CheckSecondWallCollisions(const State& _state, std::deque<int>& idxs, std::deque<glm::vec3>& normals, std::deque<float>& planesD);
 	bool CalculateWallCollisions(int i, glm::vec3 wallVertex, std::deque<int>& idxs, std::deque<glm::vec3>& normals, std::deque<float>& planesD, glm::vec3 nextVertexPos);
+	void CorrectPosition(State& _state, int id, float margin);
 	void UpdateVertices();
 	bool IdAvailable(int id);
 	void CleanCheckedIds();

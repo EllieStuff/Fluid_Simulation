@@ -287,6 +287,13 @@ void Box::update(float dt, glm::vec3 forces, glm::vec3 forcePoint)
 	// P(t+dt) = P(t) + dt * F(t)
 	tmpState.linearMomentum = tmpState.linearMomentum + (dt * forces);
 
+	//Limit linearMomentum
+	float minMaxVal = 10.f;
+	glm::vec3 minMaxVec = glm::vec3(minMaxVal, minMaxVal, minMaxVal);
+	tmpState.linearMomentum = glm::clamp(tmpState.linearMomentum, -minMaxVec, minMaxVec);
+
+	//printf("(%f, %f, %f)\n", tmpState.linearMomentum.x, tmpState.linearMomentum.y, tmpState.linearMomentum.z);
+
 	// L(t+dt) = L(t) + dt * torque(t)
 	tmpState.angularMomentum = tmpState.angularMomentum + (dt * getTorque(forcePoint, forces));
 	
@@ -323,27 +330,20 @@ void Box::update(float dt, glm::vec3 forces, glm::vec3 forcePoint)
 		std::deque<glm::vec3> colNormals;
 		std::deque<float> colPlanesD;
 		if (CheckSecondWallCollisions(tmpState, colIdxs, colNormals, colPlanesD)) {
-			//std::deque<ColData> colData;
 			for (int i = 0; i < colIdxs.size(); i++) {
-				if (!checked[colIdxs[i]] /*IdAvailable(colIdxs[i])*/) {
-					//colData.push_back(GetCollisionPointData(dt, dt, forces, forcePoint, colIdxs[i], colNormals[i], colPlanesD[i]));
+				if (!checked[colIdxs[i]]) {
 					ColData colData = GetCollisionPointData(dt, forces, forcePoint, colIdxs[i], colNormals[i], colPlanesD[i]);
 					
-					//checkedIds.push_back(FlaggedId(colIdxs[i]));
-					//checked[colIdxs[i]] = true;
+					//printf("Idx %i: (%f, %f, %f)\n", colIdxs[i], colData.colPoint.x, colData.colPoint.y, colData.colPoint.z);
 
-					printf("Idx %i: (%f, %f, %f)\n", colIdxs[i], colData.colPoint.x, colData.colPoint.y, colData.colPoint.z);
-
-
-					//glm::vec3 r = colData[i].colCenterOfMass - state.centerOfMass;
 					glm::vec3 rA = colData.colPoint - colData.colCenterOfMass;
 					glm::vec3 rB = colData.colPoint - glm::vec3(0, 5, 0);
 
 					//// P(t0) = V(t0) + (W(t0) X (P(t0) - X(t0)))
 					glm::vec3 posDerivate = linearV + glm::cross(angularW, rA);
 					float relV = glm::dot(colNormals[i], posDerivate - glm::vec3(0, 0, 0));	//Si la paret es mogues, en contres de 0 seria posDerivateB
-					float elasticityK = 0.1f;
-					relV = -(relV * (1 + elasticityK));
+					float elasticityK = 0.5f;
+					relV = -(1 + elasticityK) * relV;
 
 					float impulseMagnitude = relV / (1 / mass) + 0 + glm::dot(colNormals[i], glm::cross(inverseInertia * (glm::cross(rA, colNormals[i])), rA)) + glm::dot(colNormals[i], glm::cross(glm::vec3(0, 0, 0) * (glm::cross(rB, colNormals[i])), rB));
 					//								Wall mass																										Compute of wall impulse
@@ -351,11 +351,9 @@ void Box::update(float dt, glm::vec3 forces, glm::vec3 forcePoint)
 					glm::vec3 impulse = impulseMagnitude * colNormals[i];
 
 					//P(t0)' = P(t0) + J"impulse"
-					tmpState.linearMomentum += (impulse);
-					//Limit linearMomentum
-					float minMaxVal = 15.f;
-					glm::vec3 minMaxVec = glm::vec3(minMaxVal, minMaxVal, minMaxVal);
-					tmpState.linearMomentum = glm::clamp(tmpState.linearMomentum, -minMaxVec, minMaxVec);
+					tmpState.linearMomentum += impulse;
+					
+					//CorrectPosition(tmpState, colIdxs[i], 0.3f);
 
 					if (rotationActive) {
 						//Torque = (punt de contacte - CoM(t)) X impulse
@@ -386,6 +384,34 @@ void Box::update(float dt, glm::vec3 forces, glm::vec3 forcePoint)
 
 	setState(tmpState);
 	UpdateVertices();
+}
+
+void Box::CorrectPosition(State& _state, int id, float margin) {
+	glm::vec3 vertexPos = GetVertexPos(id, _state);
+	if (vertexPos.x < -5)
+	{
+		_state.centerOfMass += margin;
+	}
+	else if (vertexPos.x > 5)
+	{
+		_state.centerOfMass -= margin;
+	}
+	if (vertexPos.y < 0)
+	{
+		_state.centerOfMass += margin;
+	}
+	else if (vertexPos.y > 10)
+	{
+		_state.centerOfMass -= margin;
+	}
+	if (vertexPos.z < -5)
+	{
+		_state.centerOfMass += margin;
+	}
+	else if (vertexPos.z > 5)
+	{
+		_state.centerOfMass -= margin;
+	}
 }
 
 void Box::draw() {
